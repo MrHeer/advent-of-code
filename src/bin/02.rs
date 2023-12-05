@@ -13,12 +13,12 @@ struct Game {
 
 fn parse_set(set: &str) -> Set {
     let (mut red, mut green, mut blue) = (0, 0, 0);
-    let cubes: Vec<&str> = set.split(',').map(|cube| cube.trim()).collect();
+    let cubes = set.split(',').map(|cube| cube.trim());
 
-    cubes.iter().for_each(|&cube| {
-        let info: Vec<&str> = cube.split(' ').collect();
-        let count = info[0].parse().unwrap();
-        let color = info[1];
+    cubes.for_each(|cube| {
+        let mut info = cube.split(' ');
+        let count = info.next().unwrap().parse().unwrap();
+        let color = info.next().unwrap();
         match color {
             "red" => red = count,
             "green" => green = count,
@@ -31,16 +31,20 @@ fn parse_set(set: &str) -> Set {
 }
 
 fn parse_line(line: &str) -> Game {
-    let id_and_sets: Vec<&str> = line
-        .split(':')
-        .map(|id_or_sets| id_or_sets.trim())
-        .collect();
+    let mut id_and_sets = line.split(':').map(|id_or_sets| id_or_sets.trim());
 
-    let id = id_and_sets[0].split(' ').collect::<Vec<&str>>()[1]
+    let id = id_and_sets
+        .next()
+        .unwrap()
+        .split(' ')
+        .last()
+        .unwrap()
         .parse()
         .unwrap();
 
-    let sets: Vec<Set> = id_and_sets[1]
+    let sets = id_and_sets
+        .next()
+        .unwrap()
         .split(';')
         .map(|set| set.trim())
         .map(parse_set)
@@ -51,7 +55,7 @@ fn parse_line(line: &str) -> Game {
 
 fn is_possible(game: &Game) -> bool {
     for set in game.sets.iter() {
-        let Set { red, green, blue } = *set;
+        let &Set { red, green, blue } = set;
         if red > 12 || green > 13 || blue > 14 {
             return false;
         }
