@@ -14,7 +14,7 @@ fn find_first_digit(haystack: &str, re: &Regex) -> Option<u32> {
         "seven" => 7,
         "eight" => 8,
         "nine" => 9,
-        _ => digit_or_name.parse::<u32>().unwrap(),
+        _ => digit_or_name.parse().unwrap(),
     };
     Some(digit)
 }
@@ -32,7 +32,7 @@ fn find_last_digit(haystack: &str, re: &Regex) -> Option<u32> {
         "neves" => 7,
         "thgie" => 8,
         "enin" => 9,
-        _ => digit_or_name.parse::<u32>().unwrap(),
+        _ => digit_or_name.parse().unwrap(),
     };
     Some(digit)
 }
@@ -48,13 +48,14 @@ fn get_calibration_value(first_digit: Option<u32>, last_digit: Option<u32>) -> O
 }
 
 fn solve(input: &str, re: &Regex, reversed_re: &Regex) -> Option<u32> {
-    let mut result = 0;
-    input.lines().for_each(|line| {
-        let first_digit = find_first_digit(line, re);
-        let last_digit = find_last_digit(line, reversed_re);
-        result += get_calibration_value(first_digit, last_digit).unwrap_or_default();
-    });
-    Some(result)
+    input
+        .lines()
+        .map(|line| {
+            let first_digit = find_first_digit(line, re);
+            let last_digit = find_last_digit(line, reversed_re);
+            get_calibration_value(first_digit, last_digit).unwrap_or_default()
+        })
+        .reduce(|sum, value| sum + value)
 }
 
 pub fn part_one(input: &str) -> Option<u32> {

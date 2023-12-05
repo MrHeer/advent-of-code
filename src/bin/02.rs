@@ -1,0 +1,116 @@
+advent_of_code::solution!(2);
+
+struct Set {
+    red: u32,
+    green: u32,
+    blue: u32,
+}
+
+struct Game {
+    id: u32,
+    sets: Vec<Set>,
+}
+
+fn parse_set(set: &str) -> Set {
+    let (mut red, mut green, mut blue) = (0, 0, 0);
+    let cubes: Vec<&str> = set.split(',').map(|cube| cube.trim()).collect();
+
+    cubes.iter().for_each(|&cube| {
+        let info: Vec<&str> = cube.split(' ').collect();
+        let count = info[0].parse().unwrap();
+        let color = info[1];
+        match color {
+            "red" => red = count,
+            "green" => green = count,
+            "blue" => blue = count,
+            _ => panic!("other color"),
+        }
+    });
+
+    Set { red, green, blue }
+}
+
+fn parse_line(line: &str) -> Game {
+    let id_and_sets: Vec<&str> = line
+        .split(':')
+        .map(|id_or_sets| id_or_sets.trim())
+        .collect();
+
+    let id = id_and_sets[0].split(' ').collect::<Vec<&str>>()[1]
+        .parse()
+        .unwrap();
+
+    let sets: Vec<Set> = id_and_sets[1]
+        .split(';')
+        .map(|set| set.trim())
+        .map(parse_set)
+        .collect();
+
+    Game { id, sets }
+}
+
+fn is_possible(game: &Game) -> bool {
+    for set in game.sets.iter() {
+        let Set { red, green, blue } = *set;
+        if red > 12 || green > 13 || blue > 14 {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn part_one(input: &str) -> Option<u32> {
+    input
+        .lines()
+        .map(parse_line)
+        .filter(is_possible)
+        .map(|game| game.id)
+        .reduce(|sum, id| sum + id)
+}
+
+fn fewest_set(game: &Game) -> Set {
+    let (mut red, mut green, mut blue) = (0, 0, 0);
+    game.sets.iter().for_each(|set| {
+        if red < set.red {
+            red = set.red;
+        }
+        if blue < set.blue {
+            blue = set.blue;
+        }
+        if green < set.green {
+            green = set.green;
+        }
+    });
+
+    Set { red, green, blue }
+}
+
+fn multiply(set: &Set) -> u32 {
+    set.red * set.green * set.blue
+}
+
+pub fn part_two(input: &str) -> Option<u32> {
+    input
+        .lines()
+        .map(parse_line)
+        .map(|game| fewest_set(&game))
+        .map(|set| multiply(&set))
+        .reduce(|sum, multiplied| sum + multiplied)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_part_one() {
+        let result = part_one(&advent_of_code::template::read_file("examples", DAY));
+        assert_eq!(result, Some(8));
+    }
+
+    #[test]
+    fn test_part_two() {
+        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
+        assert_eq!(result, Some(2286));
+    }
+}
