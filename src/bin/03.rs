@@ -21,7 +21,7 @@ struct Engine {
 }
 
 impl Engine {
-    pub fn new(schematic_text: &str) -> Engine {
+    fn new(schematic_text: &str) -> Engine {
         let (mut schematic, mut numbers, mut gears) = (vec![], vec![], vec![]);
         let (mut row, mut col) = (0, 0);
         schematic_text.lines().for_each(|line| {
@@ -218,7 +218,7 @@ impl Engine {
         Vec::from_iter(adjacent_positions.into_iter())
     }
 
-    pub fn get_part_numbers(&self) -> Vec<u32> {
+    fn get_part_numbers(&self) -> Vec<u32> {
         self.numbers
             .iter()
             .filter(|&num| self.is_part_number(num))
@@ -242,7 +242,7 @@ impl Engine {
         star_map
     }
 
-    pub fn get_gear_ratios(&self) -> Vec<u32> {
+    fn get_gear_ratios(&self) -> Vec<u32> {
         let star_map = self.get_star_map();
 
         let gear_iter = star_map

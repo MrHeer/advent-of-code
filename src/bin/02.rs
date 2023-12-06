@@ -13,7 +13,7 @@ struct Game {
 
 fn parse_set(set: &str) -> Set {
     let (mut red, mut green, mut blue) = (0, 0, 0);
-    let cubes = set.split(',').map(|cube| cube.trim());
+    let cubes = set.split(", ");
 
     cubes.for_each(|cube| {
         let mut info = cube.split(' ');
@@ -31,7 +31,7 @@ fn parse_set(set: &str) -> Set {
 }
 
 fn parse_line(line: &str) -> Game {
-    let mut id_and_sets = line.split(':').map(|id_or_sets| id_or_sets.trim());
+    let mut id_and_sets = line.split(": ");
 
     let id = id_and_sets
         .next()
@@ -45,8 +45,7 @@ fn parse_line(line: &str) -> Game {
     let sets = id_and_sets
         .next()
         .unwrap()
-        .split(';')
-        .map(|set| set.trim())
+        .split("; ")
         .map(parse_set)
         .collect();
 
