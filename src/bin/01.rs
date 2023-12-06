@@ -48,14 +48,16 @@ fn get_calibration_value(first_digit: Option<u32>, last_digit: Option<u32>) -> O
 }
 
 fn solve(input: &str, re: &Regex, reversed_re: &Regex) -> Option<u32> {
-    input
-        .lines()
-        .map(|line| {
-            let first_digit = find_first_digit(line, re);
-            let last_digit = find_last_digit(line, reversed_re);
-            get_calibration_value(first_digit, last_digit).unwrap_or_default()
-        })
-        .reduce(|sum, value| sum + value)
+    Some(
+        input
+            .lines()
+            .map(|line| {
+                let first_digit = find_first_digit(line, re);
+                let last_digit = find_last_digit(line, reversed_re);
+                get_calibration_value(first_digit, last_digit).unwrap_or_default()
+            })
+            .sum(),
+    )
 }
 
 pub fn part_one(input: &str) -> Option<u32> {

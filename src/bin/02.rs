@@ -64,12 +64,14 @@ fn is_possible(game: &Game) -> bool {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    input
-        .lines()
-        .map(parse_line)
-        .filter(is_possible)
-        .map(|game| game.id)
-        .reduce(|sum, id| sum + id)
+    Some(
+        input
+            .lines()
+            .map(parse_line)
+            .filter(is_possible)
+            .map(|game| game.id)
+            .sum(),
+    )
 }
 
 fn fewest_set(game: &Game) -> Set {
@@ -94,12 +96,14 @@ fn multiply(set: &Set) -> u32 {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    input
-        .lines()
-        .map(parse_line)
-        .map(|game| fewest_set(&game))
-        .map(|set| multiply(&set))
-        .reduce(|sum, multiplied| sum + multiplied)
+    Some(
+        input
+            .lines()
+            .map(parse_line)
+            .map(|game| fewest_set(&game))
+            .map(|set| multiply(&set))
+            .sum(),
+    )
 }
 
 #[cfg(test)]

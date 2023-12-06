@@ -218,7 +218,7 @@ impl Engine {
         Vec::from_iter(adjacent_positions.into_iter())
     }
 
-    pub fn part_numbers(&self) -> Vec<u32> {
+    pub fn get_part_numbers(&self) -> Vec<u32> {
         self.numbers
             .iter()
             .filter(|&num| self.is_part_number(num))
@@ -226,8 +226,9 @@ impl Engine {
             .collect()
     }
 
-    pub fn get_gear_ratio(&self) -> Option<u32> {
+    fn get_star_map(&self) -> HashMap<Position, Vec<u32>> {
         let mut star_map = HashMap::new();
+
         self.numbers.iter().for_each(|number| {
             self.get_number_adjacent_position(number)
                 .iter()
@@ -238,32 +239,28 @@ impl Engine {
                 });
         });
 
+        star_map
+    }
+
+    pub fn get_gear_ratios(&self) -> Vec<u32> {
+        let star_map = self.get_star_map();
+
         let gear_iter = star_map
             .keys()
             .filter(|&star_pos| star_map.get(star_pos).unwrap().len() == 2);
 
-        gear_iter
-            .flat_map(|gear_pos| {
-                star_map
-                    .get(gear_pos)
-                    .unwrap()
-                    .to_owned()
-                    .into_iter()
-                    .reduce(|gear_ratio, value| gear_ratio * value)
-            })
-            .reduce(|sum, gear_ratio| sum + gear_ratio)
+        let get_radio = |gear_pos| star_map.get(gear_pos).unwrap().iter().product();
+
+        gear_iter.map(get_radio).collect()
     }
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    Engine::new(input)
-        .part_numbers()
-        .into_iter()
-        .reduce(|sum, value| sum + value)
+    Some(Engine::new(input).get_part_numbers().iter().sum())
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    Engine::new(input).get_gear_ratio()
+    Some(Engine::new(input).get_gear_ratios().iter().sum())
 }
 
 #[cfg(test)]
