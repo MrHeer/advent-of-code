@@ -15,7 +15,7 @@ impl Card {
         let id = iter
             .next()
             .unwrap()
-            .split(' ')
+            .split_ascii_whitespace()
             .last()
             .unwrap()
             .parse()
@@ -24,8 +24,7 @@ impl Card {
         let mut next_numbers = || {
             iter.next()
                 .unwrap()
-                .split(' ')
-                .filter(|&c| c.is_empty() == false)
+                .split_ascii_whitespace()
                 .map(|num_str| num_str.parse::<u32>().unwrap())
                 .collect::<Vec<u32>>()
         };

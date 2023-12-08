@@ -16,7 +16,9 @@ struct MapRange {
 
 impl Rule {
     fn new(rule_text: &str) -> Rule {
-        let mut iter = rule_text.split(' ').map(|x| x.parse().unwrap());
+        let mut iter = rule_text
+            .split_ascii_whitespace()
+            .map(|x| x.parse().unwrap());
         let dest_start = iter.next().unwrap();
         let source_start = iter.next().unwrap();
         let range = iter.next().unwrap();
@@ -156,10 +158,10 @@ impl Almanac {
 
     fn get_seeds(seeds_text: &str) -> Vec<u64> {
         seeds_text
-            .split(": ")
+            .split(':')
             .last()
             .unwrap()
-            .split(' ')
+            .split_ascii_whitespace()
             .map(|x| x.parse().unwrap())
             .collect()
     }
