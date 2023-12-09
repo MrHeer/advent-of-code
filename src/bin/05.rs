@@ -15,14 +15,14 @@ struct MapRange {
 }
 
 impl Rule {
-    fn new(rule_text: &str) -> Rule {
+    fn new(rule_text: &str) -> Self {
         let mut iter = rule_text
             .split_ascii_whitespace()
             .map(|x| x.parse().unwrap());
         let dest_start = iter.next().unwrap();
         let source_start = iter.next().unwrap();
         let range = iter.next().unwrap();
-        Rule {
+        Self {
             dest_start,
             source_range: source_start..source_start + range,
         }
@@ -108,8 +108,8 @@ struct Map {
 }
 
 impl Map {
-    fn new(map_text: &str) -> Map {
-        Map {
+    fn new(map_text: &str) -> Self {
+        Self {
             rules: map_text.lines().map(Rule::new).collect(),
         }
     }
@@ -149,11 +149,11 @@ struct Almanac {
 }
 
 impl Almanac {
-    fn new(almanac: &str) -> Almanac {
+    fn new(almanac: &str) -> Self {
         let mut iter = almanac.split("\n\n");
-        let seeds = Almanac::get_seeds(iter.next().unwrap());
-        let maps = iter.map(Almanac::get_map).collect();
-        Almanac { seeds, maps }
+        let seeds = Self::get_seeds(iter.next().unwrap());
+        let maps = iter.map(Self::get_map).collect();
+        Self { seeds, maps }
     }
 
     fn get_seeds(seeds_text: &str) -> Vec<u64> {

@@ -9,7 +9,7 @@ struct Card {
 }
 
 impl Card {
-    fn new(card_line: &str) -> Card {
+    fn new(card_line: &str) -> Self {
         let mut iter = card_line.split(&[':', '|'][..]).map(|x| x.trim());
 
         let id = iter
@@ -34,7 +34,7 @@ impl Card {
 
         let win_set = HashSet::from_iter(win_numbers.into_iter());
 
-        Card {
+        Self {
             id,
             win_set,
             numbers,

@@ -21,7 +21,7 @@ struct Engine {
 }
 
 impl Engine {
-    fn new(schematic_text: &str) -> Engine {
+    fn new(schematic_text: &str) -> Self {
         let (mut schematic, mut numbers, mut gears) = (vec![], vec![], vec![]);
         let (mut row, mut col) = (0, 0);
         schematic_text.lines().for_each(|line| {
@@ -40,15 +40,15 @@ impl Engine {
                     number.push(c);
                     positions.push(Position { row, col })
                 } else if number.is_empty() == false {
-                    numbers.push(Engine::make_number_and_clear(&mut number, &mut positions));
+                    numbers.push(Self::make_number_and_clear(&mut number, &mut positions));
                 }
             });
             if number.is_empty() == false {
-                numbers.push(Engine::make_number_and_clear(&mut number, &mut positions));
+                numbers.push(Self::make_number_and_clear(&mut number, &mut positions));
             }
             schematic.push(chars);
         });
-        Engine {
+        Self {
             schematic,
             numbers,
             row,
