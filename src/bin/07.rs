@@ -1,4 +1,8 @@
-use std::cmp::Ordering;
+use std::{
+    cmp::Ordering,
+    ops::{Index, IndexMut},
+    slice::Iter,
+};
 
 use itertools::Itertools;
 
@@ -6,6 +10,32 @@ advent_of_code::solution!(7);
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 struct Hand([char; 5]);
+
+impl Index<usize> for Hand {
+    type Output = char;
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.index(index)
+    }
+}
+
+impl IndexMut<usize> for Hand {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.0.index_mut(index)
+    }
+}
+
+impl Hand {
+    fn iter(&self) -> Iter<'_, char> {
+        self.0.iter()
+    }
+
+    fn map<F>(&self, f: F) -> Hand
+    where
+        F: FnMut(char) -> char,
+    {
+        Hand(self.0.map(f))
+    }
+}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum HandType {
@@ -89,7 +119,7 @@ impl CamelCard {
             .unwrap()
             .chars()
             .enumerate()
-            .for_each(|(i, c)| hand.0[i] = c);
+            .for_each(|(i, c)| hand[i] = c);
         let bid = iter.next().unwrap().parse().unwrap();
         Self::from(hand, bid)
     }
@@ -107,8 +137,7 @@ impl CamelCard {
 
     fn get_count_map(hand: &Hand) -> [(u32, char); 5] {
         let mut map = [(0, EMPTY); 5];
-        hand.0
-            .iter()
+        hand.iter()
             .counts()
             .iter()
             .map(|(&ch, count)| (*count as u32, *ch))
@@ -140,7 +169,7 @@ impl CamelCard {
     }
 
     fn map_x_to_y(hand: &Hand, x: char, y: char) -> Hand {
-        Hand(hand.0.map(|c| if c == x { y } else { c }))
+        hand.map(|c| if c == x { y } else { c })
     }
 
     fn strongest(&self) -> Self {
