@@ -29,6 +29,7 @@ struct CamelCard {
 const JOKER: char = 'J';
 const MAX_LABEL: char = 'A';
 const MIN_LABEL: char = 'X';
+const EMPTY: char = ' ';
 
 fn label_to_rank(label: &char) -> Option<u32> {
     match *label {
@@ -83,7 +84,7 @@ impl Ord for Hand {
 impl CamelCard {
     fn new(camel_card: &str) -> Self {
         let mut iter = camel_card.split_ascii_whitespace();
-        let mut hand = Hand([' '; 5]);
+        let mut hand = Hand([EMPTY; 5]);
         iter.next()
             .unwrap()
             .chars()
@@ -105,7 +106,7 @@ impl CamelCard {
     }
 
     fn get_count_map(hand: &Hand) -> [(u32, char); 5] {
-        let mut map = [(0, ' '); 5];
+        let mut map = [(0, EMPTY); 5];
         hand.0
             .iter()
             .counts()
@@ -153,7 +154,7 @@ impl CamelCard {
         let map_to_char = map
             .iter()
             .map(|(_, c)| *c)
-            .filter(|&c| c != 'J' && c != ' ')
+            .filter(|&c| c != 'J' && c != EMPTY)
             .next()
             .unwrap_or(MAX_LABEL);
         let strongest_hand = Self::map_x_to_y(&hand, JOKER, map_to_char);
