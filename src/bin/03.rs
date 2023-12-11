@@ -221,7 +221,7 @@ impl Engine {
     fn get_part_numbers(&self) -> Vec<u32> {
         self.numbers
             .iter()
-            .filter(|&num| self.is_part_number(num))
+            .filter(|num| self.is_part_number(num))
             .map(|num| num.value)
             .collect()
     }
@@ -232,9 +232,9 @@ impl Engine {
         self.numbers.iter().for_each(|number| {
             self.get_number_adjacent_position(number)
                 .iter()
-                .filter(|&adjacent_pos| self.is_star(adjacent_pos))
-                .for_each(|&star_pos| {
-                    let star_numbers = star_map.entry(star_pos).or_insert(vec![]);
+                .filter(|adjacent_pos| self.is_star(adjacent_pos))
+                .for_each(|star_pos| {
+                    let star_numbers = star_map.entry(*star_pos).or_insert(vec![]);
                     star_numbers.push(number.value);
                 });
         });
@@ -247,7 +247,7 @@ impl Engine {
 
         let gear_iter = star_map
             .keys()
-            .filter(|&star_pos| star_map.get(star_pos).unwrap().len() == 2);
+            .filter(|star_pos| star_map.get(star_pos).unwrap().len() == 2);
 
         let get_radio = |gear_pos| star_map.get(gear_pos).unwrap().iter().product();
 

@@ -44,7 +44,7 @@ impl Card {
     fn get_win_count(&self) -> u32 {
         self.numbers
             .iter()
-            .filter(|&x| self.win_set.contains(x))
+            .filter(|x| self.win_set.contains(x))
             .count() as u32
     }
 
