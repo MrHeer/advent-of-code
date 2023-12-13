@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 advent_of_code::solution!(7);
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq)]
 struct Hand([char; 5]);
 
 impl Index<usize> for Hand {
@@ -37,7 +37,7 @@ impl Hand {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 enum HandType {
     High,
     OnePair,
@@ -178,7 +178,7 @@ impl CamelCard {
             hand_type: _,
             map,
             bid,
-        } = *self;
+        } = self;
 
         let map_to_char = map
             .iter()
@@ -187,12 +187,12 @@ impl CamelCard {
             .next()
             .unwrap_or(MAX_LABEL);
         let strongest_hand = Self::map_x_to_y(&hand, JOKER, map_to_char);
-        let hand_type = Self::from(strongest_hand, bid).hand_type;
+        let hand_type = Self::from(strongest_hand, *bid).hand_type;
 
         Self {
             hand: Self::map_x_to_y(&hand, JOKER, MIN_LABEL),
             hand_type,
-            map,
+            map: *map,
             bid: self.bid,
         }
     }

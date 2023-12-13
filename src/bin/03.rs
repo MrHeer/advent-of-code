@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 advent_of_code::solution!(3);
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq)]
 struct Position {
     row: u32,
     col: u32,
@@ -22,7 +22,7 @@ struct Engine {
 
 impl Engine {
     fn new(schematic_text: &str) -> Self {
-        let (mut schematic, mut numbers, mut gears) = (vec![], vec![], vec![]);
+        let (mut schematic, mut numbers) = (vec![], vec![]);
         let (mut row, mut col) = (0, 0);
         schematic_text.lines().for_each(|line| {
             row += 1;
@@ -33,9 +33,7 @@ impl Engine {
             line.chars().for_each(|c| {
                 col += 1;
                 chars.push(c);
-                if c == '*' {
-                    gears.push(Position { row, col })
-                }
+
                 if c.is_digit(10) {
                     number.push(c);
                     positions.push(Position { row, col })
@@ -59,16 +57,15 @@ impl Engine {
     fn make_number_and_clear(number: &mut String, positions: &mut Vec<Position>) -> Number {
         let num = Number {
             value: number.parse().unwrap(),
-            positions: positions.to_vec(),
+            positions: positions.drain(..).collect(),
         };
         number.clear();
-        positions.clear();
         num
     }
 
     fn is_valid(&self, pos: &Position) -> bool {
-        let &Position { row, col } = pos;
-        row <= self.row && col <= self.col
+        let Position { row, col } = *pos;
+        1 <= row && row <= self.row && 1 <= col && col <= self.col
     }
 
     fn assert_position(&self, pos: &Position) {
@@ -77,7 +74,7 @@ impl Engine {
 
     fn get_char(&self, pos: &Position) -> char {
         self.assert_position(pos);
-        let &Position { row, col } = pos;
+        let Position { row, col } = *pos;
         self.schematic[(row - 1) as usize][(col - 1) as usize]
     }
 
@@ -103,101 +100,41 @@ impl Engine {
 
     fn get_adjacent_position(&self, pos: &Position) -> Vec<Position> {
         self.assert_position(pos);
-        let &Position { row, col } = pos;
-        let positions = match (row, col) {
-            (1, 1) => vec![
-                Position {
-                    row: row,
-                    col: col + 1,
-                },
-                Position {
-                    row: row + 1,
-                    col: col,
-                },
-                Position {
-                    row: row + 1,
-                    col: col + 1,
-                },
-            ],
-            (1, col) => vec![
-                Position {
-                    row: row,
-                    col: col - 1,
-                },
-                Position {
-                    row: row,
-                    col: col + 1,
-                },
-                Position {
-                    row: row + 1,
-                    col: col - 1,
-                },
-                Position {
-                    row: row + 1,
-                    col: col,
-                },
-                Position {
-                    row: row + 1,
-                    col: col + 1,
-                },
-            ],
-            (row, 1) => vec![
-                Position {
-                    row: row - 1,
-                    col: col,
-                },
-                Position {
-                    row: row - 1,
-                    col: col + 1,
-                },
-                Position {
-                    row: row,
-                    col: col + 1,
-                },
-                Position {
-                    row: row + 1,
-                    col: col,
-                },
-                Position {
-                    row: row + 1,
-                    col: col + 1,
-                },
-            ],
-            _ => vec![
-                Position {
-                    row: row - 1,
-                    col: col - 1,
-                },
-                Position {
-                    row: row - 1,
-                    col: col,
-                },
-                Position {
-                    row: row - 1,
-                    col: col + 1,
-                },
-                Position {
-                    row: row,
-                    col: col + 1,
-                },
-                Position {
-                    row: row,
-                    col: col - 1,
-                },
-                Position {
-                    row: row + 1,
-                    col: col - 1,
-                },
-                Position {
-                    row: row + 1,
-                    col: col,
-                },
-                Position {
-                    row: row + 1,
-                    col: col + 1,
-                },
-            ],
-        };
+        let Position { row, col } = *pos;
+        let positions = vec![
+            Position {
+                row: row - 1,
+                col: col - 1,
+            },
+            Position {
+                row: row - 1,
+                col: col,
+            },
+            Position {
+                row: row - 1,
+                col: col + 1,
+            },
+            Position {
+                row: row,
+                col: col + 1,
+            },
+            Position {
+                row: row,
+                col: col - 1,
+            },
+            Position {
+                row: row + 1,
+                col: col - 1,
+            },
+            Position {
+                row: row + 1,
+                col: col,
+            },
+            Position {
+                row: row + 1,
+                col: col + 1,
+            },
+        ];
         positions
             .into_iter()
             .filter(|pos| self.is_valid(pos))
@@ -212,7 +149,7 @@ impl Engine {
             .iter()
             .flat_map(|pos| self.get_adjacent_position(pos))
             .for_each(|adjacent_pos| {
-                adjacent_positions.insert(adjacent_pos.clone());
+                adjacent_positions.insert(adjacent_pos);
             });
 
         Vec::from_iter(adjacent_positions.into_iter())
@@ -231,10 +168,10 @@ impl Engine {
 
         self.numbers.iter().for_each(|number| {
             self.get_number_adjacent_position(number)
-                .iter()
+                .into_iter()
                 .filter(|adjacent_pos| self.is_star(adjacent_pos))
                 .for_each(|star_pos| {
-                    let star_numbers = star_map.entry(*star_pos).or_insert(vec![]);
+                    let star_numbers = star_map.entry(star_pos).or_insert(vec![]);
                     star_numbers.push(number.value);
                 });
         });
