@@ -17,8 +17,6 @@ enum Tile {
     Start,
 }
 
-use std::vec;
-
 use self::Pipe::*;
 use Tile::*;
 
@@ -38,7 +36,7 @@ impl Tile {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 struct Position {
     row: u32,
     col: u32,
@@ -94,7 +92,31 @@ impl Grid {
         &self.tiles[(row - 1) as usize][(col - 1) as usize]
     }
 
-    fn get_adjacent_position(&self, pos: &Position) -> Vec<Position> {
+    fn get_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
+        self.assert_position(pos);
+        let Position { row, col } = *pos;
+        let tile = self.get_tile(pos);
+
+        let positions = vec![
+            Position { row: row - 1, col },
+            Position { row: row + 1, col },
+            Position {
+                row: row,
+                col: col - 1,
+            },
+            Position {
+                row: row,
+                col: col + 1,
+            },
+        ];
+
+        positions
+            .into_iter()
+            .filter(|pos| self.is_valid(pos))
+            .collect()
+    }
+
+    fn get_pipe_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
         self.assert_position(pos);
         let Position { row, col } = *pos;
         let tile = self.get_tile(pos);
@@ -167,17 +189,59 @@ impl Grid {
 
     fn is_connect(&self, pos: &Position, other_pos: &Position) -> bool {
         assert!(pos != other_pos, "There are same position.");
-        let adjacent_positions = self.get_adjacent_position(pos);
-        let other_adjacent_positions = self.get_adjacent_position(other_pos);
+        let adjacent_positions = self.get_pipe_adjacent_positions(pos);
+        let other_adjacent_positions = self.get_pipe_adjacent_positions(other_pos);
         if adjacent_positions.contains(other_pos) && other_adjacent_positions.contains(pos) {
             return true;
         }
         false
     }
+
+    fn get_connected_pipe_positions(&self, pos: &Position) -> Vec<Position> {
+        self.get_pipe_adjacent_positions(pos)
+            .into_iter()
+            .filter(|adjacent_pos| self.is_connect(pos, adjacent_pos))
+            .collect()
+    }
+
+    fn get_giant_loop(&self) -> Vec<Position> {
+        let mut giant_loop = vec![];
+        for pos in self.get_connected_pipe_positions(&self.start) {
+            giant_loop.clear();
+            let mut current_pos = self.start;
+            let mut next = Some(pos);
+            while let Some(next_pos) = next {
+                let prev_pos = current_pos;
+                current_pos = next_pos;
+
+                if current_pos == self.start {
+                    return giant_loop;
+                }
+                giant_loop.push(current_pos);
+
+                next = self
+                    .get_connected_pipe_positions(&current_pos)
+                    .into_iter()
+                    .filter(|pos| *pos != prev_pos)
+                    .next();
+            }
+        }
+
+        giant_loop
+    }
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    None
+    let grid = Grid::new(input);
+    let tiles_count = (grid.row * grid.col) as usize;
+    let loop_pipes_count = grid.get_giant_loop().len() + 1;
+    let ground_count = grid
+        .tiles
+        .iter()
+        .map(|row| row.iter().filter(|tile| **tile == Ground).count())
+        .sum::<usize>();
+    let other_pipes_count = tiles_count - loop_pipes_count - ground_count;
+    Some((Grid::new(input).get_giant_loop().len() as f32 / 2.).ceil() as u32)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
@@ -190,13 +254,27 @@ mod tests {
 
     #[test]
     fn test_part_one() {
-        let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_one(&advent_of_code::template::read_file_part(
+            "examples", DAY, 1,
+        ));
+        assert_eq!(result, Some(8));
     }
 
     #[test]
     fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 2,
+        ));
+        assert_eq!(result, Some(4));
+
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 3,
+        ));
+        assert_eq!(result, Some(8));
+
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 4,
+        ));
+        assert_eq!(result, Some(10));
     }
 }

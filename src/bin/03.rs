@@ -98,7 +98,7 @@ impl Engine {
         false
     }
 
-    fn get_adjacent_position(&self, pos: &Position) -> Vec<Position> {
+    fn get_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
         self.assert_position(pos);
         let Position { row, col } = *pos;
         let positions = vec![
@@ -147,7 +147,7 @@ impl Engine {
         number
             .positions
             .iter()
-            .flat_map(|pos| self.get_adjacent_position(pos))
+            .flat_map(|pos| self.get_adjacent_positions(pos))
             .for_each(|adjacent_pos| {
                 adjacent_positions.insert(adjacent_pos);
             });
