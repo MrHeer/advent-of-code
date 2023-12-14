@@ -232,15 +232,6 @@ impl Grid {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let grid = Grid::new(input);
-    let tiles_count = (grid.row * grid.col) as usize;
-    let loop_pipes_count = grid.get_giant_loop().len() + 1;
-    let ground_count = grid
-        .tiles
-        .iter()
-        .map(|row| row.iter().filter(|tile| **tile == Ground).count())
-        .sum::<usize>();
-    let other_pipes_count = tiles_count - loop_pipes_count - ground_count;
     Some((Grid::new(input).get_giant_loop().len() as f32 / 2.).ceil() as u32)
 }
 
