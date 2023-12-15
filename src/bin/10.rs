@@ -36,17 +36,17 @@ impl Tile {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Hash, Eq, PartialEq, Clone, Copy)]
 struct Position {
-    row: u32,
-    col: u32,
+    row: i32,
+    col: i32,
 }
 
 struct Grid {
     tiles: Vec<Vec<Tile>>,
     start: Position,
-    row: u32,
-    col: u32,
+    row: i32,
+    col: i32,
 }
 
 impl Grid {
@@ -90,30 +90,6 @@ impl Grid {
         self.assert_position(pos);
         let Position { row, col } = *pos;
         &self.tiles[(row - 1) as usize][(col - 1) as usize]
-    }
-
-    fn get_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
-        self.assert_position(pos);
-        let Position { row, col } = *pos;
-        let tile = self.get_tile(pos);
-
-        let positions = vec![
-            Position { row: row - 1, col },
-            Position { row: row + 1, col },
-            Position {
-                row: row,
-                col: col - 1,
-            },
-            Position {
-                row: row,
-                col: col + 1,
-            },
-        ];
-
-        positions
-            .into_iter()
-            .filter(|pos| self.is_valid(pos))
-            .collect()
     }
 
     fn get_pipe_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
@@ -206,6 +182,7 @@ impl Grid {
 
     fn get_giant_loop(&self) -> Vec<Position> {
         let mut giant_loop = vec![];
+
         for pos in self.get_connected_pipe_positions(&self.start) {
             giant_loop.clear();
             let mut current_pos = self.start;
@@ -215,7 +192,7 @@ impl Grid {
                 current_pos = next_pos;
 
                 if current_pos == self.start {
-                    return giant_loop;
+                    break;
                 }
                 giant_loop.push(current_pos);
 
@@ -229,14 +206,42 @@ impl Grid {
 
         giant_loop
     }
+
+    // Shoelace Formula - https://en.m.wikipedia.org/wiki/Shoelace_formula
+    fn get_area_of_loop(&self) -> i32 {
+        let mut giant_loop = self.get_giant_loop();
+        giant_loop.insert(0, self.start);
+        giant_loop.push(self.start);
+        let mut area = 0;
+
+        for i in 0..giant_loop.len() - 1 {
+            let Position { row: y_i, col: x_i } = giant_loop[i];
+            let Position {
+                row: y_i_plus_1,
+                col: x_i_plus_1,
+            } = giant_loop[i + 1];
+
+            area += (y_i + y_i_plus_1) * (x_i - x_i_plus_1) / 2;
+        }
+
+        area.abs()
+    }
+
+    // Pick's Theorem - https://en.m.wikipedia.org/wiki/Pick%27s_theorem
+    fn get_number_of_interior_points(&self) -> i32 {
+        let area = self.get_area_of_loop();
+        let number_of_boundary_points = self.get_giant_loop().len() as i32 + 1;
+
+        area + 1 - number_of_boundary_points / 2
+    }
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
-    Some((Grid::new(input).get_giant_loop().len() as f32 / 2.).ceil() as u32)
+pub fn part_one(input: &str) -> Option<i32> {
+    Some((Grid::new(input).get_giant_loop().len() as f32 / 2.).ceil() as i32)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<i32> {
+    Some(Grid::new(input).get_number_of_interior_points())
 }
 
 #[cfg(test)]
