@@ -89,7 +89,7 @@ impl Record {
             return count;
         }
 
-        let damaged = self.damaged_account[0] as usize;
+        let damaged = self.damaged_account[0];
         let are_all_non_operational = self.conditions[..damaged].iter().all(|c| *c != Operational);
         let end = (damaged + 1).min(self.conditions.len());
 
