@@ -18,7 +18,7 @@ impl From<char> for Condition {
             '.' => Operational,
             '#' => Damaged,
             '?' => Unknown,
-            _ => panic!("Could not resolve condition"),
+            _ => panic!("Could not resolve condition."),
         }
     }
 }

@@ -83,16 +83,7 @@ fn label_to_rank(label: &char) -> Option<u32> {
 
 impl PartialOrd for Hand {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        for index in 0..5 {
-            let self_rank = label_to_rank(&self.0[index]).unwrap();
-            let other_rank = label_to_rank(&other.0[index]).unwrap();
-            match self_rank.partial_cmp(&other_rank) {
-                Some(Ordering::Greater) => return Some(Ordering::Greater),
-                Some(Ordering::Less) => return Some(Ordering::Less),
-                _ => continue,
-            }
-        }
-        Some(Ordering::Equal)
+        Some(self.cmp(other))
     }
 }
 
