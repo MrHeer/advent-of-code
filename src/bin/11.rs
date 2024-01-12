@@ -95,30 +95,27 @@ impl Image {
     }
 }
 
-pub fn part_one(input: &str) -> Option<u64> {
+fn solve(input: &str, expansion: u64) -> Option<u64> {
     let image = Image::new(input);
     let galaxies = &image.galaxies;
     let galaxies_len = galaxies.len();
-    let mut sum = 0;
-    for i in 0..galaxies_len - 1 {
-        for j in i + 1..galaxies_len {
-            sum += image.get_shortest_path_length(&galaxies[i], &galaxies[j], 2)
-        }
-    }
-    Some(sum)
+    Some(
+        (0..galaxies_len - 1)
+            .map(|i| {
+                (i + 1..galaxies_len)
+                    .map(|j| image.get_shortest_path_length(&galaxies[i], &galaxies[j], expansion))
+                    .sum::<u64>()
+            })
+            .sum(),
+    )
+}
+
+pub fn part_one(input: &str) -> Option<u64> {
+    solve(input, 2)
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    let image = Image::new(input);
-    let galaxies = &image.galaxies;
-    let galaxies_len = galaxies.len();
-    let mut sum = 0;
-    for i in 0..galaxies_len - 1 {
-        for j in i + 1..galaxies_len {
-            sum += image.get_shortest_path_length(&galaxies[i], &galaxies[j], 1000000)
-        }
-    }
-    Some(sum)
+    solve(input, 1000000)
 }
 
 #[cfg(test)]

@@ -32,17 +32,14 @@ impl From<&str> for Patterns {
     }
 }
 
-fn hamming_distance(a: &Vec<Pattern>, b: &Vec<Pattern>) -> u32 {
+fn hamming_distance<T>(a: &Vec<T>, b: &Vec<T>) -> usize
+where
+    T: PartialEq,
+{
     if a.len() != b.len() {
         panic!("patterns must be of equal length.");
     }
-    let mut distance = 0;
-    for i in 0..a.len() {
-        if a[i] != b[i] {
-            distance += 1;
-        }
-    }
-    distance
+    a.iter().zip(b.iter()).filter(|(a, b)| a != b).count()
 }
 
 impl Patterns {
@@ -57,10 +54,10 @@ impl Patterns {
     fn distance(&self, index: u32) -> u32 {
         let mut distance = 0;
         let max_matches = (self.len() - (index + 1)).min(index + 1);
-        for shift in 0..max_matches {
+        (0..max_matches).for_each(|shift| {
             distance += hamming_distance(&self.get(index - shift), &self.get(index + shift + 1));
-        }
-        distance
+        });
+        distance as u32
     }
 
     fn get_reflection_position(&self, distance: u32) -> Option<u32> {
