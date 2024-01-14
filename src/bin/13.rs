@@ -1,3 +1,5 @@
+use advent_of_code::Matrix;
+
 advent_of_code::solution!(13);
 
 #[derive(Clone, Copy, PartialEq)]
@@ -7,7 +9,7 @@ enum Pattern {
 }
 
 struct Patterns {
-    patterns: Vec<Vec<Pattern>>,
+    patterns: Matrix<Pattern>,
 }
 
 use Pattern::*;
@@ -24,11 +26,9 @@ impl From<char> for Pattern {
 
 impl From<&str> for Patterns {
     fn from(value: &str) -> Self {
-        let patterns = value
-            .lines()
-            .map(|line| line.chars().map(Pattern::from).collect())
-            .collect();
-        Self { patterns }
+        Self {
+            patterns: Matrix::from(value),
+        }
     }
 }
 
@@ -44,11 +44,11 @@ where
 
 impl Patterns {
     fn len(&self) -> usize {
-        self.patterns.len()
+        self.patterns.rows
     }
 
     fn get(&self, index: usize) -> Vec<Pattern> {
-        self.patterns[index].clone()
+        self.patterns.get_row(index).clone()
     }
 
     fn distance(&self, index: usize) -> usize {
@@ -68,11 +68,9 @@ impl Patterns {
     }
 
     fn transpose(&self) -> Self {
-        let patterns = (0..self.patterns[0].len())
-            .map(|col| self.patterns.iter().map(|p| p[col]).collect())
-            .collect();
-
-        Self { patterns }
+        Self {
+            patterns: self.patterns.transpose(),
+        }
     }
 
     fn summarize(&self, distance: usize) -> u32 {

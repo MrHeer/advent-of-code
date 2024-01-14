@@ -1,20 +1,8 @@
 use std::{collections::HashSet, vec};
 
+use advent_of_code::{Direction, Matrix, Position};
+
 advent_of_code::solution!(16);
-
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-struct Position {
-    row: usize,
-    col: usize,
-}
 
 enum Mirror {
     Slash,
@@ -39,9 +27,7 @@ struct Beam {
 }
 
 struct Contraption {
-    tiles: Vec<Vec<Tile>>,
-    rows: usize,
-    cols: usize,
+    tiles: Matrix<Tile>,
 }
 
 impl From<char> for Mirror {
@@ -89,7 +75,7 @@ impl Default for Beam {
 impl Beam {
     fn new(row: usize, col: usize, direction: Direction) -> Self {
         Self {
-            position: Position { row, col },
+            position: (row, col).into(),
             direction,
         }
     }
@@ -150,30 +136,15 @@ impl Beam {
 
 impl From<&str> for Contraption {
     fn from(value: &str) -> Self {
-        let tiles: Vec<Vec<Tile>> = value
-            .lines()
-            .map(|line| line.chars().map(Tile::from).collect())
-            .collect();
-        let rows = tiles.len();
-        let cols = tiles.first().map(|row| row.len()).unwrap_or_default();
-
-        Self { tiles, rows, cols }
+        Self {
+            tiles: Matrix::from(value),
+        }
     }
 }
 
 impl Contraption {
-    fn get_tile(&self, position: &Position) -> &Tile {
-        let Position { row, col } = *position;
-        &self.tiles[row - 1][col - 1]
-    }
-
-    fn is_valid_position(&self, position: &Position) -> bool {
-        let Position { row, col } = *position;
-        1 <= row && row <= self.rows && 1 <= col && col <= self.cols
-    }
-
     fn is_valid_beam(&self, beam: &Beam) -> bool {
-        self.is_valid_position(&beam.position)
+        self.tiles.is_valid_position(&beam.position)
     }
 
     fn move_beam(&self, beam: &Beam, visited: &mut HashSet<Beam>) -> Option<Vec<Beam>> {
@@ -187,7 +158,7 @@ impl Contraption {
         }
         visited.insert(*beam);
 
-        let tile = self.get_tile(&beam.position);
+        let tile = &self.tiles[beam.position];
         let beams = beam.move_in_tile(&tile);
 
         Some(beams)
@@ -214,20 +185,20 @@ impl Contraption {
     fn get_all_edge_beams(&self) -> Vec<Beam> {
         let mut beams = vec![];
 
-        (1..=self.rows).for_each(|row| {
+        (1..=self.tiles.rows).for_each(|row| {
             beams.push(Beam::new(row, 1, Right));
         });
 
-        (1..=self.rows).for_each(|row| {
-            beams.push(Beam::new(row, self.cols, Left));
+        (1..=self.tiles.rows).for_each(|row| {
+            beams.push(Beam::new(row, self.tiles.cols, Left));
         });
 
-        (1..=self.cols).for_each(|col| {
+        (1..=self.tiles.cols).for_each(|col| {
             beams.push(Beam::new(1, col, Down));
         });
 
-        (1..=self.cols).for_each(|col| {
-            beams.push(Beam::new(self.rows, col, Up));
+        (1..=self.tiles.cols).for_each(|col| {
+            beams.push(Beam::new(self.tiles.rows, col, Up));
         });
 
         beams

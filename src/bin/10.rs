@@ -1,3 +1,4 @@
+use advent_of_code::{Matrix, Position};
 advent_of_code::solution!(10);
 
 #[derive(PartialEq)]
@@ -36,17 +37,9 @@ impl Tile {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, Clone, Copy)]
-struct Position {
-    row: usize,
-    col: usize,
-}
-
 struct Grid {
-    tiles: Vec<Vec<Tile>>,
+    tiles: Matrix<Tile>,
     start: Position,
-    rows: usize,
-    cols: usize,
 }
 
 impl Grid {
@@ -62,7 +55,7 @@ impl Grid {
                 col += 1;
                 let tile = Tile::new(&ch).unwrap();
                 if start_position.is_none() && tile == Start {
-                    start_position = Some(Position { row, col });
+                    start_position = Some((row, col).into());
                 }
                 row_tiles.push(tile);
             });
@@ -70,96 +63,42 @@ impl Grid {
         });
 
         Self {
-            tiles,
+            tiles: tiles.into(),
             start: start_position.unwrap(),
-            rows: row,
-            cols: col,
         }
     }
 
-    fn is_valid(&self, pos: &Position) -> bool {
-        let Position { row, col } = *pos;
-        1 <= row && row <= self.rows && 1 <= col && col <= self.cols
-    }
-
-    fn assert_position(&self, pos: &Position) {
-        assert!(self.is_valid(pos), "pos is not valid.");
-    }
-
     fn get_tile(&self, pos: &Position) -> &Tile {
-        self.assert_position(pos);
-        let Position { row, col } = *pos;
-        &self.tiles[row - 1][col - 1]
+        &self.tiles[*pos]
     }
 
     fn get_pipe_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
-        self.assert_position(pos);
         let Position { row, col } = *pos;
         let tile = self.get_tile(pos);
 
         let positions = match tile {
             Tile::Pipe(pipe) => match pipe {
-                NorthSouth => vec![
-                    Position { row: row - 1, col },
-                    Position { row: row + 1, col },
-                ],
-                EastWest => vec![
-                    Position {
-                        row: row,
-                        col: col - 1,
-                    },
-                    Position {
-                        row: row,
-                        col: col + 1,
-                    },
-                ],
-                NorthEast => vec![
-                    Position { row: row - 1, col },
-                    Position {
-                        row: row,
-                        col: col + 1,
-                    },
-                ],
-                NorthWest => vec![
-                    Position { row: row - 1, col },
-                    Position {
-                        row: row,
-                        col: col - 1,
-                    },
-                ],
-                SouthWest => vec![
-                    Position { row: row + 1, col },
-                    Position {
-                        row: row,
-                        col: col - 1,
-                    },
-                ],
-                SouthEast => vec![
-                    Position { row: row + 1, col },
-                    Position {
-                        row: row,
-                        col: col + 1,
-                    },
-                ],
+                NorthSouth => vec![(row - 1, col), (row + 1, col)],
+                EastWest => vec![(row, col - 1), (row, col + 1)],
+                NorthEast => vec![(row - 1, col), (row, col + 1)],
+                NorthWest => vec![(row - 1, col), (row, col - 1)],
+                SouthWest => vec![(row + 1, col), (row, col - 1)],
+                SouthEast => vec![(row + 1, col), (row, col + 1)],
             },
             Ground => vec![],
             Start => vec![
-                Position { row: row - 1, col },
-                Position { row: row + 1, col },
-                Position {
-                    row: row,
-                    col: col - 1,
-                },
-                Position {
-                    row: row,
-                    col: col + 1,
-                },
+                (row - 1, col),
+                (row + 1, col),
+                (row, col - 1),
+                (row, col + 1),
             ],
-        };
+        }
+        .into_iter()
+        .map(Position::from);
 
         positions
             .into_iter()
-            .filter(|pos| self.is_valid(pos))
+            .filter(|pos| self.tiles.is_valid_position(pos))
             .collect()
     }
 

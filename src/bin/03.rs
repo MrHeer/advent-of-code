@@ -1,12 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-advent_of_code::solution!(3);
+use advent_of_code::{Matrix, Position};
 
-#[derive(Hash, PartialEq, Eq)]
-struct Position {
-    row: usize,
-    col: usize,
-}
+advent_of_code::solution!(3);
 
 struct Number {
     value: u32,
@@ -14,10 +10,8 @@ struct Number {
 }
 
 struct Engine {
-    schematic: Vec<Vec<char>>,
+    schematic: Matrix<char>,
     numbers: Vec<Number>,
-    rows: usize,
-    cols: usize,
 }
 
 impl Engine {
@@ -36,7 +30,7 @@ impl Engine {
 
                 if c.is_digit(10) {
                     number.push(c);
-                    positions.push(Position { row, col })
+                    positions.push((row, col).into())
                 } else if number.is_empty() == false {
                     numbers.push(Self::make_number_and_clear(&mut number, &mut positions));
                 }
@@ -47,10 +41,8 @@ impl Engine {
             schematic.push(chars);
         });
         Self {
-            schematic,
+            schematic: schematic.into(),
             numbers,
-            rows: row,
-            cols: col,
         }
     }
 
@@ -63,19 +55,8 @@ impl Engine {
         num
     }
 
-    fn is_valid(&self, pos: &Position) -> bool {
-        let Position { row, col } = *pos;
-        1 <= row && row <= self.rows && 1 <= col && col <= self.cols
-    }
-
-    fn assert_position(&self, pos: &Position) {
-        assert!(self.is_valid(pos), "pos is not valid.");
-    }
-
     fn get_char(&self, pos: &Position) -> char {
-        self.assert_position(pos);
-        let Position { row, col } = *pos;
-        self.schematic[row - 1][col - 1]
+        self.schematic[*pos]
     }
 
     fn is_symbol(&self, pos: &Position) -> bool {
@@ -99,46 +80,22 @@ impl Engine {
     }
 
     fn get_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
-        self.assert_position(pos);
         let Position { row, col } = *pos;
-        let positions = vec![
-            Position {
-                row: row - 1,
-                col: col - 1,
-            },
-            Position {
-                row: row - 1,
-                col: col,
-            },
-            Position {
-                row: row - 1,
-                col: col + 1,
-            },
-            Position {
-                row: row,
-                col: col + 1,
-            },
-            Position {
-                row: row,
-                col: col - 1,
-            },
-            Position {
-                row: row + 1,
-                col: col - 1,
-            },
-            Position {
-                row: row + 1,
-                col: col,
-            },
-            Position {
-                row: row + 1,
-                col: col + 1,
-            },
-        ];
-        positions
-            .into_iter()
-            .filter(|pos| self.is_valid(pos))
-            .collect()
+        [
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+        ]
+        .map(|(diff_row, diff_col)| (row as i32 + diff_row as i32, col as i32 + diff_col as i32))
+        .map(|(row, col)| (row as usize, col as usize).into())
+        .into_iter()
+        .filter(|pos| self.schematic.is_valid_position(pos))
+        .collect()
     }
 
     fn get_number_adjacent_position(&self, number: &Number) -> Vec<Position> {

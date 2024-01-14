@@ -1,3 +1,6 @@
+use advent_of_code::Position;
+use std::collections::HashSet;
+
 advent_of_code::solution!(11);
 
 #[derive(PartialEq)]
@@ -5,8 +8,6 @@ enum Space {
     Empty,
     Galaxy,
 }
-
-use std::collections::HashSet;
 
 use Space::*;
 
@@ -18,11 +19,6 @@ impl Space {
             _ => None,
         }
     }
-}
-
-struct Position {
-    row: usize,
-    col: usize,
 }
 
 struct Image {
@@ -44,7 +40,7 @@ impl Image {
                 col += 1;
                 let space = Space::new(&ch).unwrap();
                 if space == Galaxy {
-                    galaxies.push(Position { row, col });
+                    galaxies.push((row, col).into());
                     galaxy_rows.insert(row);
                     galaxy_cols.insert(col);
                 }

@@ -3,6 +3,8 @@ use std::{
     fmt::{Display, Write},
 };
 
+use advent_of_code::Matrix;
+
 advent_of_code::solution!(14);
 
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
@@ -14,7 +16,7 @@ enum Tile {
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 struct Puzzle {
-    tiles: Vec<Vec<Tile>>,
+    tiles: Matrix<Tile>,
 }
 
 use Tile::*;
@@ -43,17 +45,15 @@ impl Display for Tile {
 
 impl From<&str> for Puzzle {
     fn from(value: &str) -> Self {
-        let tiles = value
-            .lines()
-            .map(|line| line.chars().map(Tile::from).collect())
-            .collect();
-        Self { tiles }
+        Self {
+            tiles: Matrix::from(value),
+        }
     }
 }
 
 impl Display for Puzzle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for row in self.tiles.iter() {
+        for row in self.tiles.row_iter() {
             for tile in row {
                 write!(f, "{}", tile)?
             }
@@ -64,16 +64,10 @@ impl Display for Puzzle {
 }
 
 impl Puzzle {
-    fn rows(&self) -> u32 {
-        self.tiles.len() as u32
-    }
-
     fn transpose(&self) -> Self {
-        let tiles = (0..self.tiles[0].len())
-            .map(|col| self.tiles.iter().map(|p| p[col]).collect())
-            .collect();
-
-        Self { tiles }
+        Self {
+            tiles: self.tiles.transpose(),
+        }
     }
 
     fn slide_to_head_in_row(row: &Vec<Tile>) -> Vec<Tile> {
@@ -105,7 +99,12 @@ impl Puzzle {
     }
 
     fn slide_to_west(&self) -> Self {
-        let tiles = self.tiles.iter().map(Self::slide_to_head_in_row).collect();
+        let tiles = self
+            .tiles
+            .row_iter()
+            .map(Self::slide_to_head_in_row)
+            .collect::<Vec<Vec<Tile>>>()
+            .into();
         Self { tiles }
     }
 
@@ -114,7 +113,12 @@ impl Puzzle {
     }
 
     fn slide_to_east(&self) -> Self {
-        let tiles = self.tiles.iter().map(Self::slide_to_tail_in_row).collect();
+        let tiles = self
+            .tiles
+            .row_iter()
+            .map(Self::slide_to_tail_in_row)
+            .collect::<Vec<Vec<Tile>>>()
+            .into();
         Self { tiles }
     }
 
@@ -127,11 +131,11 @@ impl Puzzle {
 
     fn load(&self) -> u32 {
         self.tiles
-            .iter()
+            .row_iter()
             .enumerate()
             .map(|(index, row)| {
                 row.iter().filter(|&tile| *tile == Rounded).count() as u32
-                    * (self.rows() - index as u32)
+                    * (self.tiles.rows as u32 - index as u32)
             })
             .sum()
     }

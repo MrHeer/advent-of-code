@@ -11,6 +11,7 @@ impl History {
                 .collect(),
         )
     }
+
     fn extrapolate(&self) -> i32 {
         let mut values = self.0.clone();
         let mut result = 0;
