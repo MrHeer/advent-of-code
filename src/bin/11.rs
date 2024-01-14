@@ -21,14 +21,14 @@ impl Space {
 }
 
 struct Position {
-    row: u64,
-    col: u64,
+    row: usize,
+    col: usize,
 }
 
 struct Image {
     galaxies: Vec<Position>,
-    galaxy_rows: HashSet<u64>,
-    galaxy_cols: HashSet<u64>,
+    rows: HashSet<usize>,
+    cols: HashSet<usize>,
 }
 
 impl Image {
@@ -53,8 +53,8 @@ impl Image {
 
         Self {
             galaxies,
-            galaxy_rows,
-            galaxy_cols,
+            rows: galaxy_rows,
+            cols: galaxy_cols,
         }
     }
 
@@ -62,8 +62,8 @@ impl Image {
         &self,
         galaxy: &Position,
         other_galaxy: &Position,
-        expansion: u64,
-    ) -> u64 {
+        expansion: usize,
+    ) -> usize {
         let Position {
             row: galaxy_row,
             col: galaxy_col,
@@ -75,27 +75,22 @@ impl Image {
 
         let mut steps = 0;
 
-        let get_steps = |a: u64, b: u64, should_expand: &dyn Fn(&u64) -> bool| {
+        let get_steps = |a: usize, b: usize, should_expand: &dyn Fn(&usize) -> bool| {
             let min = Ord::min(a, b);
             let max = Ord::max(a, b);
             (min + 1..=max)
                 .map(|row| if should_expand(&row) { 1 } else { expansion })
-                .sum::<u64>()
+                .sum::<usize>()
         };
 
-        steps += get_steps(galaxy_row, other_galaxy_row, &|row| {
-            self.galaxy_rows.contains(row)
-        });
-
-        steps += get_steps(galaxy_col, other_galaxy_col, &|col| {
-            self.galaxy_cols.contains(col)
-        });
+        steps += get_steps(galaxy_row, other_galaxy_row, &|row| self.rows.contains(row));
+        steps += get_steps(galaxy_col, other_galaxy_col, &|col| self.cols.contains(col));
 
         steps
     }
 }
 
-fn solve(input: &str, expansion: u64) -> Option<u64> {
+fn solve(input: &str, expansion: usize) -> Option<usize> {
     let image = Image::new(input);
     let galaxies = &image.galaxies;
     let galaxies_len = galaxies.len();
@@ -104,17 +99,17 @@ fn solve(input: &str, expansion: u64) -> Option<u64> {
             .map(|i| {
                 (i + 1..galaxies_len)
                     .map(|j| image.get_shortest_path_length(&galaxies[i], &galaxies[j], expansion))
-                    .sum::<u64>()
+                    .sum::<usize>()
             })
             .sum(),
     )
 }
 
-pub fn part_one(input: &str) -> Option<u64> {
+pub fn part_one(input: &str) -> Option<usize> {
     solve(input, 2)
 }
 
-pub fn part_two(input: &str) -> Option<u64> {
+pub fn part_two(input: &str) -> Option<usize> {
     solve(input, 1000000)
 }
 

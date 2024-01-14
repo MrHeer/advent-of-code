@@ -38,15 +38,15 @@ impl Tile {
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy)]
 struct Position {
-    row: i32,
-    col: i32,
+    row: usize,
+    col: usize,
 }
 
 struct Grid {
     tiles: Vec<Vec<Tile>>,
     start: Position,
-    row: i32,
-    col: i32,
+    rows: usize,
+    cols: usize,
 }
 
 impl Grid {
@@ -72,14 +72,14 @@ impl Grid {
         Self {
             tiles,
             start: start_position.unwrap(),
-            row,
-            col,
+            rows: row,
+            cols: col,
         }
     }
 
     fn is_valid(&self, pos: &Position) -> bool {
         let Position { row, col } = *pos;
-        1 <= row && row <= self.row && 1 <= col && col <= self.col
+        1 <= row && row <= self.rows && 1 <= col && col <= self.cols
     }
 
     fn assert_position(&self, pos: &Position) {
@@ -89,7 +89,7 @@ impl Grid {
     fn get_tile(&self, pos: &Position) -> &Tile {
         self.assert_position(pos);
         let Position { row, col } = *pos;
-        &self.tiles[(row - 1) as usize][(col - 1) as usize]
+        &self.tiles[row - 1][col - 1]
     }
 
     fn get_pipe_adjacent_positions(&self, pos: &Position) -> Vec<Position> {
@@ -208,11 +208,11 @@ impl Grid {
     }
 
     // Shoelace Formula - https://en.m.wikipedia.org/wiki/Shoelace_formula
-    fn get_area_of_loop(&self) -> i32 {
+    fn get_area_of_loop(&self) -> usize {
         let mut giant_loop = self.get_giant_loop();
         giant_loop.insert(0, self.start);
         giant_loop.push(self.start);
-        let mut area = 0;
+        let mut area: i32 = 0;
 
         for i in 0..giant_loop.len() - 1 {
             let Position { row: y_i, col: x_i } = giant_loop[i];
@@ -221,16 +221,16 @@ impl Grid {
                 col: x_i_plus_1,
             } = giant_loop[i + 1];
 
-            area += (y_i + y_i_plus_1) * (x_i - x_i_plus_1) / 2;
+            area += (y_i as i32 + y_i_plus_1 as i32) * (x_i as i32 - x_i_plus_1 as i32) / 2;
         }
 
-        area.abs()
+        area.abs() as usize
     }
 
     // Pick's Theorem - https://en.m.wikipedia.org/wiki/Pick%27s_theorem
-    fn get_number_of_interior_points(&self) -> i32 {
+    fn get_number_of_interior_points(&self) -> usize {
         let area = self.get_area_of_loop();
-        let number_of_boundary_points = self.get_giant_loop().len() as i32 + 1;
+        let number_of_boundary_points = self.get_giant_loop().len() + 1;
 
         area + 1 - number_of_boundary_points / 2
     }
@@ -241,7 +241,7 @@ pub fn part_one(input: &str) -> Option<i32> {
 }
 
 pub fn part_two(input: &str) -> Option<i32> {
-    Some(Grid::new(input).get_number_of_interior_points())
+    Some(Grid::new(input).get_number_of_interior_points() as i32)
 }
 
 #[cfg(test)]

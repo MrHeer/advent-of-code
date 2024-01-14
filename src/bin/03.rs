@@ -4,8 +4,8 @@ advent_of_code::solution!(3);
 
 #[derive(Hash, PartialEq, Eq)]
 struct Position {
-    row: u32,
-    col: u32,
+    row: usize,
+    col: usize,
 }
 
 struct Number {
@@ -16,8 +16,8 @@ struct Number {
 struct Engine {
     schematic: Vec<Vec<char>>,
     numbers: Vec<Number>,
-    row: u32,
-    col: u32,
+    rows: usize,
+    cols: usize,
 }
 
 impl Engine {
@@ -49,8 +49,8 @@ impl Engine {
         Self {
             schematic,
             numbers,
-            row,
-            col,
+            rows: row,
+            cols: col,
         }
     }
 
@@ -65,7 +65,7 @@ impl Engine {
 
     fn is_valid(&self, pos: &Position) -> bool {
         let Position { row, col } = *pos;
-        1 <= row && row <= self.row && 1 <= col && col <= self.col
+        1 <= row && row <= self.rows && 1 <= col && col <= self.cols
     }
 
     fn assert_position(&self, pos: &Position) {
@@ -75,7 +75,7 @@ impl Engine {
     fn get_char(&self, pos: &Position) -> char {
         self.assert_position(pos);
         let Position { row, col } = *pos;
-        self.schematic[(row - 1) as usize][(col - 1) as usize]
+        self.schematic[row - 1][col - 1]
     }
 
     fn is_symbol(&self, pos: &Position) -> bool {

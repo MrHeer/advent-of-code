@@ -43,28 +43,28 @@ where
 }
 
 impl Patterns {
-    fn len(&self) -> u32 {
-        self.patterns.len() as u32
+    fn len(&self) -> usize {
+        self.patterns.len()
     }
 
-    fn get(&self, index: u32) -> Vec<Pattern> {
-        self.patterns[index as usize].clone()
+    fn get(&self, index: usize) -> Vec<Pattern> {
+        self.patterns[index].clone()
     }
 
-    fn distance(&self, index: u32) -> u32 {
+    fn distance(&self, index: usize) -> usize {
         let mut distance = 0;
         let max_matches = (self.len() - (index + 1)).min(index + 1);
         (0..max_matches).for_each(|shift| {
             distance += hamming_distance(&self.get(index - shift), &self.get(index + shift + 1));
         });
-        distance as u32
+        distance
     }
 
-    fn get_reflection_position(&self, distance: u32) -> Option<u32> {
+    fn get_reflection_position(&self, distance: usize) -> Option<u32> {
         (0..self.len() - 1)
             .filter(|index| self.distance(*index) == distance)
             .next()
-            .map(|x| x + 1)
+            .map(|x| x as u32 + 1)
     }
 
     fn transpose(&self) -> Self {
@@ -75,7 +75,7 @@ impl Patterns {
         Self { patterns }
     }
 
-    fn summarize(&self, distance: u32) -> u32 {
+    fn summarize(&self, distance: usize) -> u32 {
         self.get_reflection_position(distance).unwrap_or_default() * 100
             + self
                 .transpose()
@@ -84,7 +84,7 @@ impl Patterns {
     }
 }
 
-fn solve(input: &str, distance: u32) -> Option<u32> {
+fn solve(input: &str, distance: usize) -> Option<u32> {
     Some(
         input
             .split("\n\n")
