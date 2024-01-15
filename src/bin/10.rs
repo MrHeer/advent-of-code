@@ -138,8 +138,7 @@ impl Grid {
                 next = self
                     .get_connected_pipe_positions(&current_pos)
                     .into_iter()
-                    .filter(|pos| *pos != prev_pos)
-                    .next();
+                    .find(|pos| *pos != prev_pos);
             }
         }
 
@@ -163,7 +162,7 @@ impl Grid {
             area += (y_i as i32 + y_i_plus_1 as i32) * (x_i as i32 - x_i_plus_1 as i32) / 2;
         }
 
-        area.abs() as usize
+        area.unsigned_abs() as usize
     }
 
     // Pick's Theorem - https://en.m.wikipedia.org/wiki/Pick%27s_theorem

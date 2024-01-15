@@ -147,7 +147,7 @@ impl CamelCard {
         map.iter()
             .map(|pair| pair.0)
             .enumerate()
-            .for_each(|(i, count)| count_arr[i] = count as u32);
+            .for_each(|(i, count)| count_arr[i] = count);
         match count_arr {
             [5, 0, 0, 0, 0] => HandType::FiveKind,
             [4, 1, 0, 0, 0] => HandType::FourKind,
@@ -174,14 +174,13 @@ impl CamelCard {
         let map_to_char = map
             .iter()
             .map(|(_, c)| *c)
-            .filter(|&c| c != 'J' && c != EMPTY)
-            .next()
+            .find(|&c| c != 'J' && c != EMPTY)
             .unwrap_or(MAX_LABEL);
-        let strongest_hand = Self::map_x_to_y(&hand, JOKER, map_to_char);
+        let strongest_hand = Self::map_x_to_y(hand, JOKER, map_to_char);
         let hand_type = Self::from(strongest_hand, *bid).hand_type;
 
         Self {
-            hand: Self::map_x_to_y(&hand, JOKER, MIN_LABEL),
+            hand: Self::map_x_to_y(hand, JOKER, MIN_LABEL),
             hand_type,
             map: *map,
             bid: self.bid,
@@ -200,10 +199,7 @@ impl PartialEq for CamelCard {
 
 impl PartialOrd for CamelCard {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.hand_type.partial_cmp(&other.hand_type) {
-            Some(Ordering::Equal) => self.hand.partial_cmp(&other.hand),
-            order => order,
-        }
+        Some(self.cmp(other))
     }
 }
 

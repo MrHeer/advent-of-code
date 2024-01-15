@@ -122,7 +122,7 @@ impl Navigate {
         self.get_all_start_nodes()
             .iter()
             .map(|n| self.navigate_to_end(n, Self::is_end))
-            .fold(1, |steps, step| lcm(steps, step))
+            .fold(1, lcm)
     }
 }
 

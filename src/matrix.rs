@@ -40,7 +40,7 @@ impl<T> Index<Position> for Matrix<T> {
 
     fn index(&self, index: Position) -> &Self::Output {
         if self.is_valid_position(&index) {
-            return &self.cells[index.row - 1][index.col - 1];
+            &self.cells[index.row - 1][index.col - 1]
         } else {
             panic!("Please give correct position.");
         }
@@ -50,7 +50,7 @@ impl<T> Index<Position> for Matrix<T> {
 impl<T> IndexMut<Position> for Matrix<T> {
     fn index_mut(&mut self, index: Position) -> &mut Self::Output {
         if self.is_valid_position(&index) {
-            return &mut self.cells[index.row - 1][index.col - 1];
+            &mut self.cells[index.row - 1][index.col - 1]
         } else {
             panic!("Please give correct position.");
         }

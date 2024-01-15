@@ -70,7 +70,7 @@ impl Puzzle {
         }
     }
 
-    fn slide_to_head_in_row(row: &Vec<Tile>) -> Vec<Tile> {
+    fn slide_to_head_in_row(row: &[Tile]) -> Vec<Tile> {
         let mut slide_row = vec![Empty; row.len()];
         let mut rounded_position = 0;
         row.iter().enumerate().for_each(|(index, tile)| {
@@ -86,8 +86,8 @@ impl Puzzle {
         slide_row
     }
 
-    fn slide_to_tail_in_row(row: &Vec<Tile>) -> Vec<Tile> {
-        let mut reversed_row = row.clone();
+    fn slide_to_tail_in_row(row: &[Tile]) -> Vec<Tile> {
+        let mut reversed_row = row.to_owned();
         reversed_row.reverse();
         let mut reversed_slide_row = Self::slide_to_head_in_row(&reversed_row);
         reversed_slide_row.reverse();
@@ -102,7 +102,7 @@ impl Puzzle {
         let tiles = self
             .tiles
             .row_iter()
-            .map(Self::slide_to_head_in_row)
+            .map(|tiles| Self::slide_to_head_in_row(tiles))
             .collect::<Vec<Vec<Tile>>>()
             .into();
         Self { tiles }
@@ -116,7 +116,7 @@ impl Puzzle {
         let tiles = self
             .tiles
             .row_iter()
-            .map(Self::slide_to_tail_in_row)
+            .map(|tiles| Self::slide_to_tail_in_row(tiles))
             .collect::<Vec<Vec<Tile>>>()
             .into();
         Self { tiles }
@@ -164,7 +164,7 @@ pub fn part_two(input: &str) -> Option<u32> {
         puzzle = puzzle.cycle();
     }
 
-    return Some(puzzle.load());
+    Some(puzzle.load())
 }
 
 #[cfg(test)]

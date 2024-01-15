@@ -28,14 +28,14 @@ impl Engine {
                 col += 1;
                 chars.push(c);
 
-                if c.is_digit(10) {
+                if c.is_ascii_digit() {
                     number.push(c);
                     positions.push((row, col).into())
-                } else if number.is_empty() == false {
+                } else if !number.is_empty() {
                     numbers.push(Self::make_number_and_clear(&mut number, &mut positions));
                 }
             });
-            if number.is_empty() == false {
+            if !number.is_empty() {
                 numbers.push(Self::make_number_and_clear(&mut number, &mut positions));
             }
             schematic.push(chars);
@@ -49,7 +49,7 @@ impl Engine {
     fn make_number_and_clear(number: &mut String, positions: &mut Vec<Position>) -> Number {
         let num = Number {
             value: number.parse().unwrap(),
-            positions: positions.drain(..).collect(),
+            positions: std::mem::take(positions),
         };
         number.clear();
         num
@@ -61,7 +61,7 @@ impl Engine {
 
     fn is_symbol(&self, pos: &Position) -> bool {
         let c = self.get_char(pos);
-        !(c.is_digit(10) || c == '.')
+        !(c.is_ascii_digit() || c == '.')
     }
 
     fn is_star(&self, pos: &Position) -> bool {
@@ -91,7 +91,7 @@ impl Engine {
             (1, 0),
             (1, 1),
         ]
-        .map(|(diff_row, diff_col)| (row as i32 + diff_row as i32, col as i32 + diff_col as i32))
+        .map(|(diff_row, diff_col)| (row as i32 + diff_row, col as i32 + diff_col))
         .map(|(row, col)| (row as usize, col as usize).into())
         .into_iter()
         .filter(|pos| self.schematic.is_valid_position(pos))
@@ -109,7 +109,7 @@ impl Engine {
                 adjacent_positions.insert(adjacent_pos);
             });
 
-        Vec::from_iter(adjacent_positions.into_iter())
+        Vec::from_iter(adjacent_positions)
     }
 
     fn get_part_numbers(&self) -> Vec<u32> {

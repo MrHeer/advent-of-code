@@ -59,7 +59,7 @@ impl Rule {
                     },
                     Range {
                         start: source_end,
-                        end: end,
+                        end,
                     },
                 ],
             },
@@ -80,7 +80,7 @@ impl Rule {
                 }],
                 non_mapped: vec![Range {
                     start: source_end,
-                    end: end,
+                    end,
                 }],
             },
             (false, false) => {
@@ -132,7 +132,7 @@ impl Map {
     fn map_range(&self, range: &Range<u64>) -> Vec<Range<u64>> {
         let (mut mapped, mut non_mapped) = (vec![], vec![range.clone()]);
         self.rules.iter().for_each(|rule| {
-            let ranges: Vec<Range<u64>> = non_mapped.drain(..).collect();
+            let ranges: Vec<Range<u64>> = std::mem::take(&mut non_mapped);
             ranges.iter().for_each(|range| {
                 let mut map_result = rule.map_range(range);
                 mapped.append(&mut map_result.mapped);
@@ -186,7 +186,7 @@ impl Almanac {
 
 pub fn part_one(input: &str) -> Option<u64> {
     let almanac = Almanac::new(input);
-    let iter = almanac.seeds.iter().map(|a| *a);
+    let iter = almanac.seeds.iter().copied();
     almanac.get_lowest_location(iter)
 }
 

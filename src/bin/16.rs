@@ -81,13 +81,7 @@ impl Beam {
     }
 
     fn move_forward(mut self) -> Self {
-        match self.direction {
-            Up => self.position.row -= 1,
-            Down => self.position.row += 1,
-            Left => self.position.col -= 1,
-            Right => self.position.col += 1,
-        }
-
+        self.position = self.position.move_by_direction(&self.direction);
         self
     }
 
@@ -110,14 +104,12 @@ impl Beam {
     fn move_in_splitter(self, splitter: &Splitter) -> Vec<Self> {
         use Splitter::*;
         let beams = match (self.direction, splitter) {
-            (Up, Horizontal) | (Down, Horizontal) => vec![
-                self.clone().change_direction(Left),
-                self.clone().change_direction(Right),
-            ],
-            (Left, Vertical) | (Right, Vertical) => vec![
-                self.clone().change_direction(Up),
-                self.clone().change_direction(Down),
-            ],
+            (Up, Horizontal) | (Down, Horizontal) => {
+                vec![self.change_direction(Left), self.change_direction(Right)]
+            }
+            (Left, Vertical) | (Right, Vertical) => {
+                vec![self.change_direction(Up), self.change_direction(Down)]
+            }
             _ => vec![self],
         };
 
@@ -148,7 +140,7 @@ impl Contraption {
     }
 
     fn move_beam(&self, beam: &Beam, visited: &mut HashSet<Beam>) -> Option<Vec<Beam>> {
-        if self.is_valid_beam(beam) == false {
+        if !self.is_valid_beam(beam) {
             // the beam in out of the tiles.
             return None;
         }
@@ -159,13 +151,13 @@ impl Contraption {
         visited.insert(*beam);
 
         let tile = &self.tiles[beam.position];
-        let beams = beam.move_in_tile(&tile);
+        let beams = beam.move_in_tile(tile);
 
         Some(beams)
     }
 
     fn energizes(&self, beam: &Beam) -> u32 {
-        let mut beams = vec![beam.clone()];
+        let mut beams = vec![*beam];
         let mut visited = HashSet::new();
 
         while let Some(beam) = beams.pop() {
@@ -179,7 +171,7 @@ impl Contraption {
             visited_positions.insert(beam.position);
         });
 
-        visited_positions.iter().count() as u32
+        visited_positions.len() as u32
     }
 
     fn get_all_edge_beams(&self) -> Vec<Beam> {

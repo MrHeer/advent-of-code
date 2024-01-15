@@ -32,7 +32,7 @@ impl Card {
         let win_numbers = next_numbers();
         let numbers = next_numbers();
 
-        let win_set = HashSet::from_iter(win_numbers.into_iter());
+        let win_set = HashSet::from_iter(win_numbers);
 
         Self {
             id,
@@ -51,7 +51,7 @@ impl Card {
     fn get_points(&self) -> u32 {
         match self.get_win_count() {
             0 => 0,
-            count => 2_u32.pow((count - 1) as u32),
+            count => 2_u32.pow(count - 1),
         }
     }
 }
@@ -81,7 +81,7 @@ pub fn part_two(input: &str) -> Option<u32> {
         });
     });
 
-    Some(instances.iter().map(|(_, copies)| copies).sum())
+    Some(instances.values().sum())
 }
 
 #[cfg(test)]

@@ -94,11 +94,11 @@ impl From<&str> for Operation {
                 label,
                 focal_length,
             };
-            return Insert(lens);
+            Insert(lens)
         } else if value.contains('-') {
             let mut parts = value.split('-');
             let label = CustomizeString::from(parts.next().unwrap());
-            return Remove(label);
+            Remove(label)
         } else {
             panic!("Could not resolve operation.");
         }

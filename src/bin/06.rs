@@ -48,7 +48,7 @@ fn parse_game(game_text: &str) -> Game {
 pub fn part_one(input: &str) -> Option<u64> {
     parse_game(input)
         .iter()
-        .map(|race| race.win().and_then(|range| Some(range.count() as u64)))
+        .map(|race| race.win().map(|range| range.count() as u64))
         .product()
 }
 

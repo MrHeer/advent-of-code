@@ -16,7 +16,7 @@ impl History {
         let mut values = self.0.clone();
         let mut result = 0;
 
-        while values.iter().all(|x| *x == 0) == false {
+        while !values.iter().all(|x| *x == 0) {
             for i in 0..values.len() - 1 {
                 values[i] = values[i + 1] - values[i];
             }
@@ -31,7 +31,7 @@ impl History {
         let mut sign = 1;
         let mut result = 0;
 
-        while values.iter().all(|x| *x == 0) == false {
+        while !values.iter().all(|x| *x == 0) {
             result += sign * values.first().unwrap();
             sign *= -1;
             for i in 0..values.len() - 1 {

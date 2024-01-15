@@ -32,7 +32,7 @@ impl From<&str> for Patterns {
     }
 }
 
-fn hamming_distance<T>(a: &Vec<T>, b: &Vec<T>) -> usize
+fn hamming_distance<T>(a: &[T], b: &[T]) -> usize
 where
     T: PartialEq,
 {
@@ -62,8 +62,7 @@ impl Patterns {
 
     fn get_reflection_position(&self, distance: usize) -> Option<u32> {
         (0..self.len() - 1)
-            .filter(|index| self.distance(*index) == distance)
-            .next()
+            .find(|index| self.distance(*index) == distance)
             .map(|x| x as u32 + 1)
     }
 
