@@ -1,6 +1,6 @@
 use crate::Direction;
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub struct Position {
     pub row: usize,
     pub col: usize,
@@ -17,8 +17,8 @@ impl Position {
         Self { row, col }
     }
 
-    pub fn move_by_direction(&self, direction: &Direction) -> Self {
-        let &Position { mut row, mut col } = self;
+    pub fn move_to(&self, direction: &Direction) -> Self {
+        let Position { mut row, mut col } = *self;
 
         use Direction::*;
         match direction {

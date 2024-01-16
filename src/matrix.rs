@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt::Display,
+    ops::{Index, IndexMut},
+};
 
 use crate::Position;
 
@@ -57,6 +60,18 @@ impl<T> IndexMut<Position> for Matrix<T> {
     }
 }
 
+impl<T: Display> Display for Matrix<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in self.row_iter() {
+            for cell in row.iter() {
+                write!(f, "{}", cell)?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+}
+
 impl<T> Matrix<T> {
     pub fn is_valid_position(&self, position: &Position) -> bool {
         let Position { row, col } = *position;
@@ -74,6 +89,16 @@ impl<T> Matrix<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.row_iter().flat_map(|row| row.iter())
     }
+
+    pub fn map<U, F>(&self, mut f: F) -> Matrix<U>
+    where
+        F: FnMut(&T) -> U,
+    {
+        self.row_iter()
+            .map(|row| row.iter().map(&mut f).collect())
+            .collect::<Vec<Vec<U>>>()
+            .into()
+    }
 }
 
 impl<T> Matrix<T>
@@ -81,8 +106,8 @@ where
     T: Copy,
 {
     pub fn transpose(&self) -> Self {
-        let cells = (0..self.cells[0].len())
-            .map(|col| self.cells.iter().map(|cell| cell[col]).collect())
+        let cells = (0..self.cols)
+            .map(|col| self.row_iter().map(|row| row[col]).collect())
             .collect();
 
         Self {

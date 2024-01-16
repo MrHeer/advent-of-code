@@ -1,50 +1,142 @@
-use std::collections::HashSet;
+use std::ops::Add;
 
-use advent_of_code::{Direction, Matrix, Position};
+use advent_of_code::{dijkstra::Bound, dijkstra_search, Direction, Matrix, Position};
+use Direction::*;
 
 advent_of_code::solution!(17);
 
+#[derive(Hash, Clone, Copy, PartialEq, Eq)]
 struct Crucible {
     position: Position,
     direction: Direction,
     forward_times: usize,
+    is_ultra: bool,
 }
 
-type Path = HashSet<Position>;
+#[derive(PartialEq, Eq, Clone, Copy)]
+struct Cost(u32);
 
-struct Puzzle {
-    blocks: Matrix<u32>,
+struct Solver {
+    blocks: Matrix<Cost>,
 }
 
-impl Default for Crucible {
-    fn default() -> Self {
-        Crucible::new(1, 1, Direction::Right)
+impl Ord for Cost {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+impl PartialOrd for Cost {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Add for Cost {
+    type Output = Cost;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Bound for Cost {
+    fn min_value() -> Self {
+        Self(u32::MIN)
+    }
+
+    fn max_value() -> Self {
+        Self(u32::MAX)
+    }
+}
+
+impl From<char> for Cost {
+    fn from(value: char) -> Self {
+        Self(value.to_digit(10).unwrap())
     }
 }
 
 impl Crucible {
-    fn new(row: usize, col: usize, direction: Direction) -> Self {
+    fn new(row: usize, col: usize, direction: Direction, is_ultra: bool) -> Self {
         Self {
             position: (row, col).into(),
             direction,
             forward_times: 0,
+            is_ultra,
         }
     }
 
-    fn move_forward(self) -> Self {
-        // self.position = match self.direction {
-        //     Direction::Up => todo!(),
-        //     Direction::Down => todo!(),
-        //     Direction::Left => todo!(),
-        //     Direction::Right => todo!(),
-        // }
-        // self.forward_times += 1;
+    fn create(position: &Position, direction: Direction) -> Self {
+        let Position { row, col } = *position;
+        Self::new(row, col, direction, false)
+    }
 
-        self
+    fn create_ultra(position: &Position, direction: Direction) -> Self {
+        let Position { row, col } = *position;
+        Self::new(row, col, direction, true)
+    }
+
+    fn minimum_forward(&self) -> usize {
+        match self.is_ultra {
+            true => 4,
+            false => 0,
+        }
+    }
+
+    fn maximum_forward(&self) -> usize {
+        match self.is_ultra {
+            true => 10,
+            false => 3,
+        }
+    }
+
+    fn could_forward(&self) -> bool {
+        self.forward_times < self.maximum_forward()
+    }
+
+    fn could_turnaround(&self) -> bool {
+        self.forward_times >= self.minimum_forward()
+    }
+
+    fn move_forward(mut self) -> Option<Self> {
+        if !self.could_forward() {
+            return None;
+        }
+        self.position = self.position.move_to(&self.direction);
+        self.forward_times += 1;
+        Some(self)
+    }
+
+    fn move_left(mut self) -> Option<Self> {
+        if !self.could_turnaround() {
+            return None;
+        }
+
+        self.direction = self.direction.turn_left();
+        self.position = self.position.move_to(&self.direction);
+        self.forward_times = 1;
+        Some(self)
+    }
+
+    fn move_right(mut self) -> Option<Self> {
+        if !self.could_turnaround() {
+            return None;
+        }
+        self.direction = self.direction.turn_right();
+        self.position = self.position.move_to(&self.direction);
+        self.forward_times = 1;
+        Some(self)
+    }
+
+    fn moves(&self) -> Vec<Self> {
+        [self.move_forward(), self.move_left(), self.move_right()]
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 
-impl From<&str> for Puzzle {
+impl From<&str> for Solver {
     fn from(value: &str) -> Self {
         Self {
             blocks: Matrix::from(value),
@@ -52,18 +144,69 @@ impl From<&str> for Puzzle {
     }
 }
 
-impl Puzzle {
-    fn find_path(&self, start: &Position, end: &Position) -> Vec<Path> {
-        vec![]
+impl Solver {
+    fn is_valid(&self, crucible: &Crucible) -> bool {
+        self.blocks.is_valid_position(&crucible.position)
+    }
+
+    fn heat_loss(&self, crucible: &Crucible) -> Cost {
+        self.blocks[crucible.position]
+    }
+
+    fn is_reach_goal(crucible: &Crucible, goal: &Position) -> bool {
+        crucible.position == *goal
+    }
+
+    fn minimize_heat_loss(&self, start: &Position, goal: &Position, is_ultra: bool) -> Option<u32> {
+        let starts: Vec<Crucible> = match is_ultra {
+            true => vec![
+                Crucible::create_ultra(start, Up),
+                Crucible::create_ultra(start, Down),
+                Crucible::create_ultra(start, Left),
+                Crucible::create_ultra(start, Right),
+            ],
+            false => vec![
+                Crucible::create(start, Up),
+                Crucible::create(start, Down),
+                Crucible::create(start, Left),
+                Crucible::create(start, Right),
+            ],
+        };
+
+        let is_reach_goal = |crucible: &Crucible| match is_ultra {
+            true => crucible.could_turnaround() && Self::is_reach_goal(crucible, goal),
+            false => Self::is_reach_goal(crucible, goal),
+        };
+
+        dijkstra_search(
+            starts,
+            is_reach_goal,
+            |_, neighbor| self.heat_loss(neighbor),
+            |node| {
+                node.moves()
+                    .into_iter()
+                    .filter(|crucible| self.is_valid(crucible))
+                    .collect()
+            },
+        )
+        .map(|cost| cost.0)
     }
 }
 
+fn solve(input: &str, is_ultra: bool) -> Option<u32> {
+    let solver = Solver::from(input);
+    let blocks = &solver.blocks;
+    let start = (1, 1).into();
+    let goal = (blocks.rows, blocks.cols).into();
+    solver.minimize_heat_loss(&start, &goal, is_ultra)
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
-    None
+    solve(input, false)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    solve(input, true)
 }
 
 #[cfg(test)]
@@ -72,13 +215,22 @@ mod tests {
 
     #[test]
     fn test_part_one() {
-        let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_one(&advent_of_code::template::read_file_part(
+            "examples", DAY, 1,
+        ));
+        assert_eq!(result, Some(102));
     }
 
     #[test]
     fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 1,
+        ));
+        assert_eq!(result, Some(94));
+
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 2,
+        ));
+        assert_eq!(result, Some(71));
     }
 }

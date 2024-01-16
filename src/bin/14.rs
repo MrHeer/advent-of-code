@@ -15,7 +15,7 @@ enum Tile {
 }
 
 #[derive(PartialEq, Eq, Clone, Hash)]
-struct Puzzle {
+struct Solver {
     tiles: Matrix<Tile>,
 }
 
@@ -43,7 +43,7 @@ impl Display for Tile {
     }
 }
 
-impl From<&str> for Puzzle {
+impl From<&str> for Solver {
     fn from(value: &str) -> Self {
         Self {
             tiles: Matrix::from(value),
@@ -51,7 +51,7 @@ impl From<&str> for Puzzle {
     }
 }
 
-impl Display for Puzzle {
+impl Display for Solver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for row in self.tiles.row_iter() {
             for tile in row {
@@ -63,7 +63,7 @@ impl Display for Puzzle {
     }
 }
 
-impl Puzzle {
+impl Solver {
     fn transpose(&self) -> Self {
         Self {
             tiles: self.tiles.transpose(),
@@ -142,29 +142,29 @@ impl Puzzle {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    Some(Puzzle::from(input).slide_to_north().load())
+    Some(Solver::from(input).slide_to_north().load())
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let mut puzzle = Puzzle::from(input);
+    let mut solver = Solver::from(input);
     let mut index_map = HashMap::new();
     let mut index: u32 = 0;
     loop {
-        index_map.insert(puzzle.clone(), index);
-        puzzle = puzzle.cycle();
+        index_map.insert(solver.clone(), index);
+        solver = solver.cycle();
         index += 1;
-        if index_map.contains_key(&puzzle) {
+        if index_map.contains_key(&solver) {
             break;
         }
     }
-    let cycle_start = *index_map.get(&puzzle).unwrap();
+    let cycle_start = *index_map.get(&solver).unwrap();
     let cycle_length = index - cycle_start;
 
     for _ in 0..(1_000_000_000 - cycle_start) % cycle_length {
-        puzzle = puzzle.cycle();
+        solver = solver.cycle();
     }
 
-    Some(puzzle.load())
+    Some(solver.load())
 }
 
 #[cfg(test)]

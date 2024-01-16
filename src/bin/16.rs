@@ -81,7 +81,7 @@ impl Beam {
     }
 
     fn move_forward(mut self) -> Self {
-        self.position = self.position.move_by_direction(&self.direction);
+        self.position = self.position.move_to(&self.direction);
         self
     }
 
