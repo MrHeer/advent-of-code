@@ -17,16 +17,14 @@ impl Position {
         Self { row, col }
     }
 
-    pub fn move_to(&self, direction: &Direction) -> Self {
-        let Position { mut row, mut col } = *self;
-
+    pub fn move_to(&mut self, direction: &Direction) -> &Self {
         use Direction::*;
         match direction {
-            Up => row -= 1,
-            Down => row += 1,
-            Left => col -= 1,
-            Right => col += 1,
+            Up => self.row -= 1,
+            Down => self.row += 1,
+            Left => self.col -= 1,
+            Right => self.col += 1,
         }
-        Position::new(row, col)
+        self
     }
 }

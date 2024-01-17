@@ -1,6 +1,6 @@
 use std::{collections::HashSet, vec};
 
-use advent_of_code::{Direction, Matrix, Position};
+use advent_of_code::{Direction, Matrix, Movable, Position};
 
 advent_of_code::solution!(16);
 
@@ -20,11 +20,8 @@ enum Tile {
     Splitter(Splitter),
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
-struct Beam {
-    position: Position,
-    direction: Direction,
-}
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct Beam(Movable);
 
 struct Contraption {
     tiles: Matrix<Tile>,
@@ -74,41 +71,47 @@ impl Default for Beam {
 
 impl Beam {
     fn new(row: usize, col: usize, direction: Direction) -> Self {
-        Self {
-            position: (row, col).into(),
-            direction,
-        }
+        let movable = Movable::new((row, col).into(), direction);
+        Self(movable)
+    }
+
+    fn position(&self) -> &Position {
+        &self.0.position
+    }
+
+    fn direction(&self) -> &Direction {
+        &self.0.direction
+    }
+
+    fn turn_to(mut self, direction: Direction) -> Self {
+        self.0.turn_to(direction);
+        self
     }
 
     fn move_forward(mut self) -> Self {
-        self.position = self.position.move_to(&self.direction);
+        self.0.move_forward();
         self
     }
 
     fn move_in_mirror(self, mirror: &Mirror) -> Self {
         use Mirror::*;
-        match (self.direction, mirror) {
-            (Left, BackSlash) | (Right, Slash) => self.change_direction(Up),
-            (Left, Slash) | (Right, BackSlash) => self.change_direction(Down),
-            (Up, BackSlash) | (Down, Slash) => self.change_direction(Left),
-            (Up, Slash) | (Down, BackSlash) => self.change_direction(Right),
+        match (self.direction(), mirror) {
+            (Left, BackSlash) | (Right, Slash) => self.turn_to(Up),
+            (Left, Slash) | (Right, BackSlash) => self.turn_to(Down),
+            (Up, BackSlash) | (Down, Slash) => self.turn_to(Left),
+            (Up, Slash) | (Down, BackSlash) => self.turn_to(Right),
         }
         .move_forward()
     }
 
-    fn change_direction(mut self, direction: Direction) -> Self {
-        self.direction = direction;
-        self
-    }
-
     fn move_in_splitter(self, splitter: &Splitter) -> Vec<Self> {
         use Splitter::*;
-        let beams = match (self.direction, splitter) {
+        let beams = match (self.direction(), splitter) {
             (Up, Horizontal) | (Down, Horizontal) => {
-                vec![self.change_direction(Left), self.change_direction(Right)]
+                vec![self.turn_to(Left), self.turn_to(Right)]
             }
             (Left, Vertical) | (Right, Vertical) => {
-                vec![self.change_direction(Up), self.change_direction(Down)]
+                vec![self.turn_to(Up), self.turn_to(Down)]
             }
             _ => vec![self],
         };
@@ -136,7 +139,7 @@ impl From<&str> for Contraption {
 
 impl Contraption {
     fn is_valid_beam(&self, beam: &Beam) -> bool {
-        self.tiles.is_valid_position(&beam.position)
+        self.tiles.is_valid_position(beam.position())
     }
 
     fn move_beam(&self, beam: &Beam, visited: &mut HashSet<Beam>) -> Option<Vec<Beam>> {
@@ -150,7 +153,7 @@ impl Contraption {
         }
         visited.insert(*beam);
 
-        let tile = &self.tiles[beam.position];
+        let tile = &self.tiles[*beam.position()];
         let beams = beam.move_in_tile(tile);
 
         Some(beams)
@@ -168,7 +171,7 @@ impl Contraption {
 
         let mut visited_positions = HashSet::new();
         visited.iter().for_each(|beam| {
-            visited_positions.insert(beam.position);
+            visited_positions.insert(beam.position());
         });
 
         visited_positions.len() as u32

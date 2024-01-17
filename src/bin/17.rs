@@ -1,14 +1,13 @@
 use std::ops::Add;
 
-use advent_of_code::{dijkstra::Bound, dijkstra_search, Direction, Matrix, Position};
+use advent_of_code::{dijkstra::Bound, dijkstra_search, Direction, Matrix, Movable, Position};
 use Direction::*;
 
 advent_of_code::solution!(17);
 
-#[derive(Hash, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct Crucible {
-    position: Position,
-    direction: Direction,
+    movable: Movable,
     forward_times: usize,
     is_ultra: bool,
 }
@@ -58,9 +57,9 @@ impl From<char> for Cost {
 
 impl Crucible {
     fn new(row: usize, col: usize, direction: Direction, is_ultra: bool) -> Self {
+        let movable = Movable::new((row, col).into(), direction);
         Self {
-            position: (row, col).into(),
-            direction,
+            movable,
             forward_times: 0,
             is_ultra,
         }
@@ -74,6 +73,10 @@ impl Crucible {
     fn create_ultra(position: &Position, direction: Direction) -> Self {
         let Position { row, col } = *position;
         Self::new(row, col, direction, true)
+    }
+
+    fn position(&self) -> &Position {
+        &self.movable.position
     }
 
     fn minimum_forward(&self) -> usize {
@@ -102,30 +105,35 @@ impl Crucible {
         if !self.could_forward() {
             return None;
         }
-        self.position = self.position.move_to(&self.direction);
+        self.movable.move_forward();
         self.forward_times += 1;
         Some(self)
+    }
+
+    fn turn_left(&mut self) -> &mut Self {
+        self.movable.turn_left();
+        self.forward_times = 0;
+        self
+    }
+
+    fn turn_right(&mut self) -> &mut Self {
+        self.movable.turn_right();
+        self.forward_times = 0;
+        self
     }
 
     fn move_left(mut self) -> Option<Self> {
         if !self.could_turnaround() {
             return None;
         }
-
-        self.direction = self.direction.turn_left();
-        self.position = self.position.move_to(&self.direction);
-        self.forward_times = 1;
-        Some(self)
+        self.turn_left().move_forward()
     }
 
     fn move_right(mut self) -> Option<Self> {
         if !self.could_turnaround() {
             return None;
         }
-        self.direction = self.direction.turn_right();
-        self.position = self.position.move_to(&self.direction);
-        self.forward_times = 1;
-        Some(self)
+        self.turn_right().move_forward()
     }
 
     fn moves(&self) -> Vec<Self> {
@@ -146,15 +154,15 @@ impl From<&str> for Solver {
 
 impl Solver {
     fn is_valid(&self, crucible: &Crucible) -> bool {
-        self.blocks.is_valid_position(&crucible.position)
+        self.blocks.is_valid_position(crucible.position())
     }
 
     fn heat_loss(&self, crucible: &Crucible) -> Cost {
-        self.blocks[crucible.position]
+        self.blocks[*crucible.position()]
     }
 
     fn is_reach_goal(crucible: &Crucible, goal: &Position) -> bool {
-        crucible.position == *goal
+        crucible.position() == goal
     }
 
     fn minimize_heat_loss(&self, start: &Position, goal: &Position, is_ultra: bool) -> Option<u32> {
