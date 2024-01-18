@@ -1,4 +1,6 @@
-use advent_of_code::{Matrix, Position};
+use advent_of_code::{number_of_interiors, Matrix, Position as P};
+type Position = P<usize>;
+
 advent_of_code::solution!(10);
 
 #[derive(PartialEq)]
@@ -142,44 +144,26 @@ impl Grid {
             }
         }
 
+        giant_loop.insert(0, self.start);
         giant_loop
     }
 
-    // Shoelace Formula - https://en.m.wikipedia.org/wiki/Shoelace_formula
-    fn get_area_of_loop(&self) -> usize {
-        let mut giant_loop = self.get_giant_loop();
-        giant_loop.insert(0, self.start);
-        giant_loop.push(self.start);
-        let mut area: i32 = 0;
-
-        for i in 0..giant_loop.len() - 1 {
-            let Position { row: y_i, col: x_i } = giant_loop[i];
-            let Position {
-                row: y_i_plus_1,
-                col: x_i_plus_1,
-            } = giant_loop[i + 1];
-
-            area += (y_i as i32 + y_i_plus_1 as i32) * (x_i as i32 - x_i_plus_1 as i32) / 2;
-        }
-
-        area.unsigned_abs() as usize
-    }
-
-    // Pick's Theorem - https://en.m.wikipedia.org/wiki/Pick%27s_theorem
     fn get_number_of_interior_points(&self) -> usize {
-        let area = self.get_area_of_loop();
-        let number_of_boundary_points = self.get_giant_loop().len() + 1;
-
-        area + 1 - number_of_boundary_points / 2
+        let circle = self
+            .get_giant_loop()
+            .iter()
+            .map(|p| P::<isize>::new(p.row as isize, p.col as isize))
+            .collect::<Vec<P<isize>>>();
+        number_of_interiors(&circle)
     }
 }
 
-pub fn part_one(input: &str) -> Option<i32> {
-    Some((Grid::new(input).get_giant_loop().len() as f32 / 2.).ceil() as i32)
+pub fn part_one(input: &str) -> Option<usize> {
+    Some(Grid::new(input).get_giant_loop().len() / 2)
 }
 
-pub fn part_two(input: &str) -> Option<i32> {
-    Some(Grid::new(input).get_number_of_interior_points() as i32)
+pub fn part_two(input: &str) -> Option<usize> {
+    Some(Grid::new(input).get_number_of_interior_points())
 }
 
 #[cfg(test)]

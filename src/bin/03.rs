@@ -1,6 +1,6 @@
+use advent_of_code::{Matrix, Position as P};
 use std::collections::{HashMap, HashSet};
-
-use advent_of_code::{Matrix, Position};
+type Position = P<usize>;
 
 advent_of_code::solution!(3);
 

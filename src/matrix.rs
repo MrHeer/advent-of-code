@@ -38,10 +38,12 @@ impl<T> From<Vec<Vec<T>>> for Matrix<T> {
     }
 }
 
-impl<T> Index<Position> for Matrix<T> {
+type Idx = Position<usize>;
+
+impl<T> Index<Idx> for Matrix<T> {
     type Output = T;
 
-    fn index(&self, index: Position) -> &Self::Output {
+    fn index(&self, index: Idx) -> &Self::Output {
         if self.is_valid_position(&index) {
             &self.cells[index.row - 1][index.col - 1]
         } else {
@@ -50,8 +52,8 @@ impl<T> Index<Position> for Matrix<T> {
     }
 }
 
-impl<T> IndexMut<Position> for Matrix<T> {
-    fn index_mut(&mut self, index: Position) -> &mut Self::Output {
+impl<T> IndexMut<Idx> for Matrix<T> {
+    fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
         if self.is_valid_position(&index) {
             &mut self.cells[index.row - 1][index.col - 1]
         } else {
@@ -73,7 +75,7 @@ impl<T: Display> Display for Matrix<T> {
 }
 
 impl<T> Matrix<T> {
-    pub fn is_valid_position(&self, position: &Position) -> bool {
+    pub fn is_valid_position(&self, position: &Idx) -> bool {
         let Position { row, col } = *position;
         1 <= row && row <= self.rows && 1 <= col && col <= self.cols
     }

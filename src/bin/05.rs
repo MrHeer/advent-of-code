@@ -1,6 +1,5 @@
-use std::ops::Range;
-
 use itertools::Itertools;
+use std::ops::Range;
 
 advent_of_code::solution!(5);
 

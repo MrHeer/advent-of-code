@@ -1,13 +1,13 @@
+use advent_of_code::{dijkstra::Bound, dijkstra_search, Direction, Matrix, Movable, Position as P};
 use std::ops::Add;
-
-use advent_of_code::{dijkstra::Bound, dijkstra_search, Direction, Matrix, Movable, Position};
 use Direction::*;
+type Position = P<usize>;
 
 advent_of_code::solution!(17);
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct Crucible {
-    movable: Movable,
+    movable: Movable<usize>,
     forward_times: usize,
     is_ultra: bool,
 }
@@ -105,7 +105,7 @@ impl Crucible {
         if !self.could_forward() {
             return None;
         }
-        self.movable.move_forward();
+        self.movable.move_forward(1);
         self.forward_times += 1;
         Some(self)
     }

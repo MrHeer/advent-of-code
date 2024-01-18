@@ -1,6 +1,6 @@
+use advent_of_code::{Direction, Matrix, Movable, Position as P};
 use std::{collections::HashSet, vec};
-
-use advent_of_code::{Direction, Matrix, Movable, Position};
+type Position = P<usize>;
 
 advent_of_code::solution!(16);
 
@@ -21,7 +21,7 @@ enum Tile {
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-struct Beam(Movable);
+struct Beam(Movable<usize>);
 
 struct Contraption {
     tiles: Matrix<Tile>,
@@ -84,12 +84,12 @@ impl Beam {
     }
 
     fn turn_to(mut self, direction: Direction) -> Self {
-        self.0.turn_to(direction);
+        self.0.turn_to(&direction);
         self
     }
 
     fn move_forward(mut self) -> Self {
-        self.0.move_forward();
+        self.0.move_forward(1);
         self
     }
 

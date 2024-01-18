@@ -1,5 +1,6 @@
-use advent_of_code::Position;
+use advent_of_code::Position as P;
 use std::collections::HashSet;
+type Position = P<usize>;
 
 advent_of_code::solution!(11);
 

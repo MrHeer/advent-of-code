@@ -1,10 +1,9 @@
+use itertools::Itertools;
 use std::{
     cmp::Ordering,
     ops::{Index, IndexMut},
     slice::Iter,
 };
-
-use itertools::Itertools;
 
 advent_of_code::solution!(7);
 

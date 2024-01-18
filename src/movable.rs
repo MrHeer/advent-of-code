@@ -1,21 +1,23 @@
+use std::ops::{AddAssign, SubAssign};
+
 use crate::{Direction, Position};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Movable {
-    pub position: Position,
+pub struct Movable<T: Clone + AddAssign + SubAssign> {
+    pub position: Position<T>,
     pub direction: Direction,
 }
 
-impl Movable {
-    pub fn new(position: Position, direction: Direction) -> Self {
+impl<T: Clone + AddAssign + SubAssign> Movable<T> {
+    pub fn new(position: Position<T>, direction: Direction) -> Self {
         Self {
             position,
             direction,
         }
     }
 
-    pub fn turn_to(&mut self, direction: Direction) -> &Self {
-        self.direction = direction;
+    pub fn turn_to(&mut self, direction: &Direction) -> &mut Self {
+        self.direction = *direction;
         self
     }
 
@@ -34,20 +36,20 @@ impl Movable {
         self
     }
 
-    pub fn move_forward(&mut self) -> &mut Self {
-        self.position.move_to(&self.direction);
+    pub fn move_forward(&mut self, steps: T) -> &mut Self {
+        self.position.move_to(&self.direction, steps);
         self
     }
 
-    pub fn move_left(&mut self) -> &mut Self {
-        self.turn_left().move_forward()
+    pub fn move_left(&mut self, steps: T) -> &mut Self {
+        self.turn_left().move_forward(steps)
     }
 
-    pub fn move_right(&mut self) -> &mut Self {
-        self.turn_right().move_forward()
+    pub fn move_right(&mut self, steps: T) -> &mut Self {
+        self.turn_right().move_forward(steps)
     }
 
-    pub fn move_back(&mut self) -> &mut Self {
-        self.turn_back().move_forward()
+    pub fn move_back(&mut self, steps: T) -> &mut Self {
+        self.turn_back().move_forward(steps)
     }
 }

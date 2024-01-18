@@ -1,9 +1,8 @@
+use advent_of_code::Matrix;
 use std::{
     collections::HashMap,
     fmt::{Display, Write},
 };
-
-use advent_of_code::Matrix;
 
 advent_of_code::solution!(14);
 
