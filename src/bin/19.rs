@@ -10,7 +10,7 @@ struct Part {
 }
 
 #[derive(Copy, Clone)]
-enum RateCategory {
+enum Category {
     Looking,
     Musical,
     Aerodynamic,
@@ -23,21 +23,21 @@ enum Operator {
 }
 
 struct Condition {
-    category: RateCategory,
+    category: Category,
     operator: Operator,
     rate: usize,
 }
 
 #[derive(PartialEq, Eq)]
-enum Result {
-    Accept,
+enum Finished {
+    Accepted,
     Rejected,
 }
 
 #[derive(PartialEq, Eq)]
 enum Destination {
     Workflow(String),
-    Finished(Result),
+    End(Finished),
 }
 
 struct Rule {
@@ -81,8 +81,8 @@ impl Part {
         self.looking + self.musical + self.aerodynamic + self.shiny
     }
 
-    fn get_rate(&self, category: &RateCategory) -> usize {
-        use RateCategory::*;
+    fn get_rate(&self, category: &Category) -> usize {
+        use Category::*;
         match category {
             Looking => self.looking,
             Musical => self.musical,
@@ -92,14 +92,14 @@ impl Part {
     }
 }
 
-impl From<char> for RateCategory {
+impl From<char> for Category {
     fn from(value: char) -> Self {
         match value {
             'x' => Self::Looking,
             'm' => Self::Musical,
             'a' => Self::Aerodynamic,
             's' => Self::Shiny,
-            _ => panic!("Invalid rate category"),
+            _ => panic!("Invalid category"),
         }
     }
 }
@@ -139,22 +139,22 @@ impl Condition {
     }
 }
 
-impl From<&str> for Result {
+impl From<&str> for Finished {
     fn from(value: &str) -> Self {
         match value {
-            "A" => Self::Accept,
+            "A" => Self::Accepted,
             "R" => Self::Rejected,
-            _ => panic!("Invalid result"),
+            _ => panic!("Invalid finished state"),
         }
     }
 }
 
 impl From<&str> for Destination {
     fn from(value: &str) -> Self {
-        use crate::Result::*;
+        use Finished::*;
         match value {
-            "A" => Self::Finished(Accept),
-            "R" => Self::Finished(Rejected),
+            "A" => Self::End(Accepted),
+            "R" => Self::End(Rejected),
             _ => Self::Workflow(value.to_string()),
         }
     }
@@ -234,22 +234,22 @@ impl Solver {
         &self.workflows["in"]
     }
 
-    fn resolve(&self, part: &Part) -> &Result {
+    fn resolve(&self, part: &Part) -> &Finished {
         let mut workflow = self.first_workflow();
         use Destination::*;
         loop {
             match workflow.resolve(part) {
                 Workflow(name) => workflow = &self.workflows[name],
-                Finished(result) => return result,
+                End(result) => return result,
             }
         }
     }
 
     fn rating_sum(&self) -> usize {
-        use crate::Result::*;
+        use Finished::*;
         self.parts
             .iter()
-            .filter(|part| self.resolve(part) == &Accept)
+            .filter(|part| self.resolve(part) == &Accepted)
             .map(|part| part.rating())
             .sum()
     }
@@ -284,8 +284,8 @@ impl Segment {
     }
 
     fn update_segment(mut self, condition: &Condition) -> Self {
+        use Category::*;
         use Operator::*;
-        use RateCategory::*;
         let Condition {
             category,
             operator,
@@ -340,16 +340,16 @@ impl Solver {
         work_flow: &Workflow,
         rule_index: usize,
     ) -> Vec<Segment> {
-        use crate::Result::*;
         use Destination::*;
+        use Finished::*;
         let rule = &work_flow.rules[rule_index];
         match (&rule.condition, &rule.destination) {
-            (None, Finished(Rejected)) => vec![],
-            (None, Finished(Accept)) => vec![segment],
+            (None, End(Rejected)) => vec![],
+            (None, End(Accepted)) => vec![segment],
             (None, Workflow(next_flow_name)) => {
                 self.get_accepted_segments(segment, &self.workflows[next_flow_name], 0)
             }
-            (Some(condition), Finished(Accept)) => [
+            (Some(condition), End(Accepted)) => [
                 vec![segment.clone().update_segment(condition)],
                 self.get_accepted_segments(
                     segment.update_segment(&condition.reverse()),
@@ -358,7 +358,7 @@ impl Solver {
                 ),
             ]
             .concat(),
-            (Some(condition), Finished(Rejected)) => self.get_accepted_segments(
+            (Some(condition), End(Rejected)) => self.get_accepted_segments(
                 segment.update_segment(&condition.reverse()),
                 work_flow,
                 rule_index + 1,
