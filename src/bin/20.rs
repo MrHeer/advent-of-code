@@ -1,8 +1,15 @@
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+    rc::{Rc, Weak},
+    vec,
+};
 
 advent_of_code::solution!(20);
 
-const BROADCAST_NAME: &str = "broadcaster";
+const BROADCASTER_NAME: &str = "broadcaster";
+const BUTTON_NAME: &str = "button";
 
 #[derive(Copy, Clone, PartialEq)]
 enum Pulse {
@@ -10,18 +17,15 @@ enum Pulse {
     High,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum State {
+    On,
+    Off,
+}
+
 enum Prefix {
     FlipFlop,
     Conjunction,
-}
-
-impl Pulse {
-    fn flip(&self) -> Self {
-        match self {
-            Self::Low => Self::High,
-            Self::High => Self::Low,
-        }
-    }
 }
 
 impl Display for Pulse {
@@ -37,34 +41,35 @@ type Address = String;
 
 trait Module {
     fn get_address(&self) -> Address;
-    fn add_destination(&mut self, other: Rc<RefCell<dyn Module>>);
-    fn get_destinations(&self) -> &Vec<Rc<RefCell<dyn Module>>>;
+    fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>);
+    fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>>;
     fn connect_from(&mut self, from: Address);
     fn receive(&mut self, from: Address, pulse: Pulse);
     fn get_pulse(&self) -> Option<Pulse>;
+    fn is_init_state(&self) -> bool;
+    fn push_history(&mut self, pulse: Pulse);
+    fn get_history(&self) -> Vec<Pulse>;
+    fn clear_pulse(&mut self);
 
-    fn connect_to(&mut self, to: Rc<RefCell<dyn Module>>) {
+    fn connect_to(&mut self, to: Weak<RefCell<dyn Module>>) {
         self.add_destination(to.clone());
-        to.borrow_mut().connect_from(self.get_address());
+        to.upgrade()
+            .unwrap()
+            .borrow_mut()
+            .connect_from(self.get_address());
     }
-    fn send(&mut self) {
-        if let Some(pulse) = self.get_pulse() {
-            self.get_destinations().iter().for_each(|m| {
-                let from_address = self.get_address();
-                let to_address = m.borrow().get_address();
-                println!("{} -{}-> {}", from_address, pulse, to_address);
-                m.borrow_mut().receive(from_address, pulse);
-            });
-            self.get_destinations().iter().for_each(|m| {
-                m.borrow_mut().send();
-            });
-        }
+    fn send(&mut self, pulse: Pulse) {
+        self.get_destinations().into_iter().for_each(|module| {
+            let from_address = self.get_address();
+            self.push_history(pulse);
+            module
+                .upgrade()
+                .unwrap()
+                .borrow_mut()
+                .receive(from_address, pulse);
+        });
+        self.clear_pulse();
     }
-}
-
-enum State {
-    On,
-    Off,
 }
 
 impl State {
@@ -76,77 +81,128 @@ impl State {
     }
 }
 
-struct FlipFlop {
+struct Untyped {
     name: String,
-    state: State,
     next_pulse: Option<Pulse>,
-    destinations: Vec<Rc<RefCell<dyn Module>>>,
+    destinations: Vec<Weak<RefCell<dyn Module>>>,
+    history: Vec<Pulse>,
+}
+
+struct FlipFlop {
+    base: Untyped,
+    state: State,
 }
 
 struct Conjunction {
-    name: String,
-    next_pulse: Option<Pulse>,
+    base: Untyped,
     last_pulse: HashMap<String, Pulse>,
-    destinations: Vec<Rc<RefCell<dyn Module>>>,
 }
 
 struct Broadcast {
-    name: String,
-    next_pulse: Option<Pulse>,
-    destinations: Vec<Rc<RefCell<dyn Module>>>,
+    base: Untyped,
 }
 
-struct Untyped {
-    name: String,
-    destinations: Vec<Rc<RefCell<dyn Module>>>,
-}
-
-struct Button {
-    broadcaster: Rc<RefCell<dyn Module>>,
-}
-
-impl Module for FlipFlop {
+impl Module for Untyped {
     fn get_address(&self) -> Address {
         self.name.clone()
     }
 
-    fn add_destination(&mut self, other: Rc<RefCell<dyn Module>>) {
+    fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>) {
         self.destinations.push(other);
     }
 
-    fn get_destinations(&self) -> &Vec<Rc<RefCell<dyn Module>>> {
-        &self.destinations
+    fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>> {
+        self.destinations.clone()
+    }
+
+    fn connect_from(&mut self, _from: Address) {}
+
+    fn receive(&mut self, _from: Address, _pulse: Pulse) {}
+
+    fn get_pulse(&self) -> Option<Pulse> {
+        self.next_pulse
+    }
+
+    fn is_init_state(&self) -> bool {
+        true
+    }
+
+    fn push_history(&mut self, pulse: Pulse) {
+        self.history.push(pulse);
+    }
+
+    fn get_history(&self) -> Vec<Pulse> {
+        self.history.clone()
+    }
+
+    fn clear_pulse(&mut self) {
+        self.next_pulse = None;
+    }
+}
+
+impl Module for FlipFlop {
+    fn get_address(&self) -> Address {
+        self.base.get_address()
+    }
+
+    fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>) {
+        self.base.add_destination(other);
+    }
+
+    fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>> {
+        self.base.get_destinations()
     }
 
     fn connect_from(&mut self, _from: Address) {}
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
         use Pulse::*;
-        match pulse {
-            Low => {
+        use State::*;
+        match (pulse, &self.state) {
+            (High, _) => (),
+            (Low, On) => {
                 self.state = self.state.flip();
-                self.next_pulse = Some(pulse.flip());
+                self.base.next_pulse = Some(Low);
             }
-            High => (),
+            (Low, Off) => {
+                self.state = self.state.flip();
+                self.base.next_pulse = Some(High);
+            }
         }
     }
 
     fn get_pulse(&self) -> Option<Pulse> {
-        self.next_pulse
+        self.base.get_pulse()
+    }
+
+    fn clear_pulse(&mut self) {
+        self.base.clear_pulse();
+    }
+
+    fn is_init_state(&self) -> bool {
+        self.state == State::Off
+    }
+
+    fn push_history(&mut self, pulse: Pulse) {
+        self.base.push_history(pulse);
+    }
+
+    fn get_history(&self) -> Vec<Pulse> {
+        self.base.get_history()
     }
 }
 
 impl Module for Conjunction {
     fn get_address(&self) -> Address {
-        self.name.clone()
+        self.base.get_address()
     }
 
-    fn add_destination(&mut self, other: Rc<RefCell<dyn Module>>) {
-        self.destinations.push(other);
+    fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>) {
+        self.base.add_destination(other);
     }
 
-    fn get_destinations(&self) -> &Vec<Rc<RefCell<dyn Module>>> {
-        &self.destinations
+    fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>> {
+        self.base.get_destinations()
     }
 
     fn connect_from(&mut self, from: Address) {
@@ -155,90 +211,70 @@ impl Module for Conjunction {
 
     fn receive(&mut self, from: Address, pulse: Pulse) {
         self.last_pulse.insert(from, pulse);
-        self.next_pulse = match self.last_pulse.values().all(|p| *p == Pulse::High) {
+        self.base.next_pulse = match self.last_pulse.values().all(|pulse| *pulse == Pulse::High) {
             true => Some(Pulse::Low),
             false => Some(Pulse::High),
         };
     }
 
     fn get_pulse(&self) -> Option<Pulse> {
-        self.next_pulse
+        self.base.get_pulse()
+    }
+
+    fn clear_pulse(&mut self) {
+        self.base.clear_pulse();
+    }
+
+    fn is_init_state(&self) -> bool {
+        self.last_pulse.values().all(|pulse| *pulse == Pulse::Low)
+    }
+
+    fn push_history(&mut self, pulse: Pulse) {
+        self.base.push_history(pulse);
+    }
+
+    fn get_history(&self) -> Vec<Pulse> {
+        self.base.get_history()
     }
 }
 
 impl Module for Broadcast {
     fn get_address(&self) -> Address {
-        self.name.clone()
+        self.base.get_address()
     }
 
-    fn add_destination(&mut self, other: Rc<RefCell<dyn Module>>) {
-        self.destinations.push(other);
+    fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>) {
+        self.base.add_destination(other);
     }
 
-    fn get_destinations(&self) -> &Vec<Rc<RefCell<dyn Module>>> {
-        &self.destinations
+    fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>> {
+        self.base.get_destinations()
     }
 
     fn connect_from(&mut self, _from: Address) {}
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
-        self.next_pulse = Some(pulse);
+        self.base.next_pulse = Some(pulse);
     }
 
     fn get_pulse(&self) -> Option<Pulse> {
-        self.next_pulse
-    }
-}
-
-impl Module for Untyped {
-    fn get_address(&self) -> Address {
-        self.name.clone()
+        self.base.get_pulse()
     }
 
-    fn add_destination(&mut self, _other: Rc<RefCell<dyn Module>>) {}
-
-    fn get_destinations(&self) -> &Vec<Rc<RefCell<dyn Module>>> {
-        &self.destinations
+    fn clear_pulse(&mut self) {
+        self.base.clear_pulse();
     }
 
-    fn connect_from(&mut self, _from: Address) {}
-
-    fn receive(&mut self, _from: Address, _pulse: Pulse) {}
-
-    fn get_pulse(&self) -> Option<Pulse> {
-        None
+    fn is_init_state(&self) -> bool {
+        self.base.is_init_state()
     }
-}
 
-impl FlipFlop {
-    fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            next_pulse: None,
-            state: State::Off,
-            destinations: vec![],
-        }
+    fn push_history(&mut self, pulse: Pulse) {
+        self.base.push_history(pulse);
     }
-}
 
-impl Conjunction {
-    fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            next_pulse: None,
-            last_pulse: HashMap::new(),
-            destinations: vec![],
-        }
-    }
-}
-
-impl Broadcast {
-    fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            next_pulse: None,
-            destinations: vec![],
-        }
+    fn get_history(&self) -> Vec<Pulse> {
+        self.base.get_history()
     }
 }
 
@@ -246,22 +282,89 @@ impl Untyped {
     fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
+            next_pulse: None,
             destinations: vec![],
+            history: vec![],
         }
     }
 }
 
-impl Button {
-    fn new(broadcaster: Rc<RefCell<dyn Module>>) -> Self {
-        Self { broadcaster }
+impl FlipFlop {
+    fn new(name: &str) -> Self {
+        Self {
+            state: State::Off,
+            base: Untyped::new(name),
+        }
+    }
+}
+
+impl Conjunction {
+    fn new(name: &str) -> Self {
+        Self {
+            base: Untyped::new(name),
+            last_pulse: HashMap::new(),
+        }
+    }
+}
+
+impl Broadcast {
+    fn new(name: &str) -> Self {
+        Self {
+            base: Untyped::new(name),
+        }
+    }
+}
+
+struct Solver {
+    modules: HashMap<Address, Rc<RefCell<dyn Module>>>,
+}
+
+impl Solver {
+    fn new(modules: HashMap<Address, Rc<RefCell<dyn Module>>>) -> Self {
+        Self { modules }
     }
 
-    fn push(&mut self) {
-        println!("button -low-> broadcaster");
-        self.broadcaster
-            .borrow_mut()
-            .receive("button".to_string(), Pulse::Low);
-        self.broadcaster.borrow_mut().send();
+    fn get_module(&self, address: &Address) -> Rc<RefCell<dyn Module>> {
+        self.modules.get(address).unwrap().clone()
+    }
+
+    fn get_button(&self) -> Rc<RefCell<dyn Module>> {
+        self.get_module(&BUTTON_NAME.to_string())
+    }
+
+    fn push_button(&self) {
+        self.get_button().borrow_mut().send(Pulse::Low);
+        let mut modules = VecDeque::from_iter(self.get_button().borrow().get_destinations());
+        while let Some(module) = modules.pop_front() {
+            if let Some(pulse) = {
+                let upgrade = module.upgrade().unwrap();
+                let borrowed = upgrade.borrow();
+                borrowed.get_pulse()
+            } {
+                module.upgrade().unwrap().borrow_mut().send(pulse);
+                modules.append(&mut VecDeque::from_iter(
+                    module.upgrade().unwrap().borrow().get_destinations(),
+                ));
+            }
+        }
+    }
+
+    fn solve(&self) -> Option<usize> {
+        (0..1000).for_each(|_| self.push_button());
+        Some(
+            self.modules
+                .values()
+                .flat_map(|module| module.borrow().get_history())
+                .fold([0, 0], |mut acc, pulse| {
+                    match pulse {
+                        Pulse::Low => acc[0] += 1,
+                        Pulse::High => acc[1] += 1,
+                    }
+                    acc
+                })
+                .iter()
+                .product(),
+        )
     }
 }
 
@@ -312,7 +415,7 @@ fn create_module(module_info: ModuleInfo) -> Rc<RefCell<dyn Module>> {
     use Prefix::*;
     match (&module_info.name, module_info.prefix) {
         (name, None) => {
-            if name == BROADCAST_NAME {
+            if name == BROADCASTER_NAME {
                 Rc::new(RefCell::new(Broadcast::new(name)))
             } else {
                 Rc::new(RefCell::new(Untyped::new(name)))
@@ -323,9 +426,8 @@ fn create_module(module_info: ModuleInfo) -> Rc<RefCell<dyn Module>> {
     }
 }
 
-impl From<&str> for Button {
+impl From<&str> for Solver {
     fn from(value: &str) -> Self {
-        const BROADCAST_NAME: &str = "broadcaster";
         let mut modules: HashMap<Address, Rc<RefCell<dyn Module>>> = HashMap::new();
 
         // initialize modules
@@ -337,7 +439,7 @@ impl From<&str> for Button {
                 modules.insert(module.clone().borrow().get_address(), module);
             });
 
-        let mut get_module = |module_info: ModuleInfo| {
+        let mut get_or_create_module = |module_info: ModuleInfo| {
             modules
                 .entry(module_info.name.clone())
                 .or_insert(create_module(module_info))
@@ -348,7 +450,7 @@ impl From<&str> for Button {
         value.lines().for_each(|line| {
             let mut parts = line.split(" -> ");
             let module_info: ModuleInfo = parts.next().unwrap().into();
-            let module = get_module(module_info);
+            let module = get_or_create_module(module_info);
 
             parts
                 .next()
@@ -356,21 +458,25 @@ impl From<&str> for Button {
                 .split(", ")
                 .for_each(|connect_io_info| {
                     let to_module_info: ModuleInfo = connect_io_info.into();
-                    let to_module = get_module(to_module_info);
+                    let to_module = Rc::downgrade(&get_or_create_module(to_module_info));
                     module.borrow_mut().connect_to(to_module);
                 });
         });
 
-        Button::new(modules.get(BROADCAST_NAME).unwrap().clone())
+        // connect button to broadcaster
+        let button = get_or_create_module(ModuleInfo::from(BUTTON_NAME));
+        let broadcaster = get_or_create_module(ModuleInfo::from(BROADCASTER_NAME));
+        button.borrow_mut().connect_to(Rc::downgrade(&broadcaster));
+
+        Self::new(modules)
     }
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
-    Button::from(input).push();
-    None
+pub fn part_one(input: &str) -> Option<usize> {
+    Solver::from(input).solve()
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
+pub fn part_two(input: &str) -> Option<usize> {
     None
 }
 
