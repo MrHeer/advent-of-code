@@ -82,7 +82,7 @@ impl State {
 
 struct Untyped {
     name: String,
-    next_pulse: Option<Pulse>,
+    output_pulse: Option<Pulse>,
     destinations: Vec<Weak<RefCell<dyn Module>>>,
     history: Vec<Pulse>,
 }
@@ -103,8 +103,8 @@ struct Broadcast {
 }
 
 impl Untyped {
-    fn set_next_pulse(&mut self, pulse: Pulse) {
-        self.next_pulse = Some(pulse);
+    fn set_output_pulse(&mut self, pulse: Pulse) {
+        self.output_pulse = Some(pulse);
     }
 }
 
@@ -126,7 +126,7 @@ impl Module for Untyped {
     fn receive(&mut self, _from: Address, _pulse: Pulse) {}
 
     fn get_output_pulse(&self) -> Option<Pulse> {
-        self.next_pulse
+        self.output_pulse
     }
 
     fn is_init_state(&self) -> bool {
@@ -168,12 +168,12 @@ impl Module for FlipFlop {
             (High, _) => self.enabled = false,
             (Low, On) => {
                 self.state = self.state.flip();
-                self.base.set_next_pulse(Low);
+                self.base.set_output_pulse(Low);
                 self.enabled = true;
             }
             (Low, Off) => {
                 self.state = self.state.flip();
-                self.base.set_next_pulse(High);
+                self.base.set_output_pulse(High);
                 self.enabled = true;
             }
         }
@@ -220,11 +220,11 @@ impl Module for Conjunction {
     fn receive(&mut self, from: Address, pulse: Pulse) {
         self.last_pulse.insert(from, pulse);
         use Pulse::*;
-        let next_pulse = match self.last_pulse.values().all(|pulse| *pulse == High) {
+        let output_pulse = match self.last_pulse.values().all(|pulse| *pulse == High) {
             true => Low,
             false => High,
         };
-        self.base.set_next_pulse(next_pulse);
+        self.base.set_output_pulse(output_pulse);
     }
 
     fn get_output_pulse(&self) -> Option<Pulse> {
@@ -264,7 +264,7 @@ impl Module for Broadcast {
     fn connect_from(&mut self, _from: Address) {}
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
-        self.base.set_next_pulse(pulse);
+        self.base.set_output_pulse(pulse);
     }
 
     fn get_output_pulse(&self) -> Option<Pulse> {
@@ -292,7 +292,7 @@ impl Untyped {
     fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
-            next_pulse: None,
+            output_pulse: None,
             destinations: vec![],
             history: vec![],
         }
