@@ -1,31 +1,38 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::Display,
     rc::{Rc, Weak},
     vec,
 };
 
+use num::integer::lcm;
+
 advent_of_code::solution!(20);
 
 const BROADCASTER_NAME: &str = "broadcaster";
 const BUTTON_NAME: &str = "button";
+const FLIP_FLOP_PREFIX: &str = "%";
+const CONJUNCTION_PREFIX: &str = "&";
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 enum Pulse {
     Low,
     High,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum State {
     On,
     Off,
 }
 
-enum Prefix {
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum ModuleKind {
+    Untyped,
     FlipFlop,
     Conjunction,
+    Broadcast,
 }
 
 impl Display for Pulse {
@@ -44,12 +51,14 @@ trait Module {
     fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>);
     fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>>;
     fn connect_from(&mut self, from: Address);
+    fn get_connected(&self) -> Vec<Address>;
     fn receive(&mut self, from: Address, pulse: Pulse);
     fn get_output_pulse(&self) -> Option<Pulse>;
     fn is_init_state(&self) -> bool;
     fn push_history(&mut self, pulse: Pulse);
     fn get_history(&self) -> Vec<Pulse>;
     fn is_enable(&self) -> bool;
+    fn get_kind(&self) -> ModuleKind;
 
     fn connect_to(&mut self, to: Weak<RefCell<dyn Module>>) {
         self.add_destination(to.clone());
@@ -80,10 +89,20 @@ impl State {
     }
 }
 
+impl Pulse {
+    fn flip(&self) -> Self {
+        match self {
+            Self::High => Self::Low,
+            Self::Low => Self::High,
+        }
+    }
+}
+
 struct Untyped {
     name: String,
     output_pulse: Option<Pulse>,
     destinations: Vec<Weak<RefCell<dyn Module>>>,
+    connected: Vec<Address>,
     history: Vec<Pulse>,
 }
 
@@ -121,7 +140,13 @@ impl Module for Untyped {
         self.destinations.clone()
     }
 
-    fn connect_from(&mut self, _from: Address) {}
+    fn connect_from(&mut self, from: Address) {
+        self.connected.push(from)
+    }
+
+    fn get_connected(&self) -> Vec<Address> {
+        self.connected.clone()
+    }
 
     fn receive(&mut self, _from: Address, _pulse: Pulse) {}
 
@@ -144,6 +169,10 @@ impl Module for Untyped {
     fn is_enable(&self) -> bool {
         true
     }
+
+    fn get_kind(&self) -> ModuleKind {
+        ModuleKind::Untyped
+    }
 }
 
 impl Module for FlipFlop {
@@ -159,7 +188,13 @@ impl Module for FlipFlop {
         self.base.get_destinations()
     }
 
-    fn connect_from(&mut self, _from: Address) {}
+    fn connect_from(&mut self, from: Address) {
+        self.base.connect_from(from);
+    }
+
+    fn get_connected(&self) -> Vec<Address> {
+        self.base.get_connected()
+    }
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
         use Pulse::*;
@@ -198,6 +233,10 @@ impl Module for FlipFlop {
     fn is_enable(&self) -> bool {
         self.enabled
     }
+
+    fn get_kind(&self) -> ModuleKind {
+        ModuleKind::FlipFlop
+    }
 }
 
 impl Module for Conjunction {
@@ -214,7 +253,12 @@ impl Module for Conjunction {
     }
 
     fn connect_from(&mut self, from: Address) {
+        self.base.connect_from(from.clone());
         self.last_pulse.insert(from, Pulse::Low);
+    }
+
+    fn get_connected(&self) -> Vec<Address> {
+        self.base.get_connected()
     }
 
     fn receive(&mut self, from: Address, pulse: Pulse) {
@@ -246,6 +290,10 @@ impl Module for Conjunction {
     fn is_enable(&self) -> bool {
         self.base.is_enable()
     }
+
+    fn get_kind(&self) -> ModuleKind {
+        ModuleKind::Conjunction
+    }
 }
 
 impl Module for Broadcast {
@@ -261,7 +309,13 @@ impl Module for Broadcast {
         self.base.get_destinations()
     }
 
-    fn connect_from(&mut self, _from: Address) {}
+    fn connect_from(&mut self, from: Address) {
+        self.base.connect_from(from);
+    }
+
+    fn get_connected(&self) -> Vec<Address> {
+        self.base.get_connected()
+    }
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
         self.base.set_output_pulse(pulse);
@@ -286,6 +340,10 @@ impl Module for Broadcast {
     fn is_enable(&self) -> bool {
         self.base.is_enable()
     }
+
+    fn get_kind(&self) -> ModuleKind {
+        ModuleKind::FlipFlop
+    }
 }
 
 impl Untyped {
@@ -294,6 +352,7 @@ impl Untyped {
             name: name.to_string(),
             output_pulse: None,
             destinations: vec![],
+            connected: vec![],
             history: vec![],
         }
     }
@@ -343,6 +402,78 @@ impl Solver {
         self.get_module(&BUTTON_NAME.to_string())
     }
 
+    fn get_output_pulse(&self, address: &Address) -> Option<Pulse> {
+        self.get_module(address).borrow().get_output_pulse()
+    }
+
+    fn get_connected(&self, address: &Address) -> Vec<Address> {
+        self.get_module(address).borrow().get_connected()
+    }
+
+    fn get_all_connected(&self, address: &Address) -> HashSet<Address> {
+        let mut all_connected = HashSet::new();
+        let mut queue = VecDeque::from_iter(self.get_connected(address));
+        while let Some(address) = queue.pop_front() {
+            if !all_connected.contains(&address) {
+                all_connected.insert(address.clone());
+                queue.append(&mut VecDeque::from_iter(
+                    self.get_connected(&address).into_iter(),
+                ));
+            }
+        }
+        all_connected
+    }
+
+    fn is_all_connected_init_state(&self, address: &Address) -> bool {
+        self.get_all_connected(address)
+            .iter()
+            .all(|address| self.get_module(address).borrow().is_init_state())
+    }
+
+    fn get_kind(&self, address: &Address) -> ModuleKind {
+        self.get_module(address).borrow().get_kind()
+    }
+
+    fn is_connected_all_conjunction(&self, address: &Address) -> bool {
+        self.get_connected(address)
+            .iter()
+            .all(|address| self.get_kind(address) == ModuleKind::Conjunction)
+    }
+
+    fn split_conditions(&self, address: &Address, pulse: Pulse) -> Option<HashMap<Address, Pulse>> {
+        if self.is_connected_all_conjunction(address) {
+            let mut map = HashMap::new();
+            self.get_connected(address).into_iter().for_each(|address| {
+                map.insert(address, pulse.flip());
+            });
+
+            return Some(map);
+        }
+
+        None
+    }
+
+    fn get_conditions(&self, address: &Address, pulse: Pulse) -> Option<HashMap<Address, Pulse>> {
+        match self.split_conditions(address, pulse) {
+            Some(mut conditions) => {
+                let mut stack: Vec<Address> = conditions.keys().cloned().collect();
+                while let Some(address) = stack.pop() {
+                    let flattened = self.split_conditions(&address, conditions[&address]);
+                    if let Some(flattened) = flattened {
+                        conditions.remove(&address);
+                        stack.append(&mut flattened.keys().cloned().collect());
+                        flattened.into_iter().for_each(|(address, pulse)| {
+                            conditions.insert(address, pulse);
+                        });
+                    }
+                }
+
+                Some(conditions)
+            }
+            None => None,
+        }
+    }
+
     fn push_button(&self) {
         self.get_button().borrow_mut().send(Pulse::Low);
         let mut modules = VecDeque::from_iter(self.get_button().borrow().get_destinations());
@@ -366,7 +497,7 @@ impl Solver {
         }
     }
 
-    fn solve(&self) -> Option<usize> {
+    fn solve_part_one(&self) -> Option<usize> {
         use Pulse::*;
         (0..1000).for_each(|_| self.push_button());
         let (low_count, hight_count) = self
@@ -382,63 +513,88 @@ impl Solver {
             });
         Some(low_count * hight_count)
     }
-}
 
-impl ToString for Prefix {
-    fn to_string(&self) -> String {
-        use Prefix::*;
-        match self {
-            FlipFlop => "%".to_string(),
-            Conjunction => "&".to_string(),
+    fn solve_part_two_by_conditions(&self, conditions: HashMap<Address, Pulse>) -> Option<usize> {
+        let mut count = 0;
+        let mut cycles: HashMap<Address, usize> = HashMap::new();
+        loop {
+            self.push_button();
+            count += 1;
+            conditions.iter().for_each(|(address, pulse)| {
+                if self.get_output_pulse(address) == Some(*pulse)
+                    && !cycles.contains_key(address)
+                    && self.is_all_connected_init_state(address)
+                {
+                    cycles.insert(address.clone(), count);
+                }
+            });
+
+            if cycles.len() == conditions.len() {
+                return cycles.values().cloned().reduce(lcm);
+            }
+        }
+    }
+
+    fn solve_part_two_brute(&self, target: &Address, pulse: Pulse) -> Option<usize> {
+        let mut count = 0;
+        loop {
+            self.push_button();
+            count += 1;
+            if self.get_output_pulse(target) == Some(pulse) {
+                return Some(count);
+            }
+        }
+    }
+
+    fn solve_part_two(&self) -> Option<usize> {
+        let target: Address = "rx".to_string();
+        let pulse = Pulse::Low;
+        let conditions = self.get_conditions(&target, Pulse::Low);
+        match conditions {
+            Some(conditions) => self.solve_part_two_by_conditions(conditions),
+            None => self.solve_part_two_brute(&target, pulse),
         }
     }
 }
 
 struct ModuleInfo {
     name: String,
-    prefix: Option<Prefix>,
+    kind: ModuleKind,
 }
 
 impl From<&str> for ModuleInfo {
     fn from(value: &str) -> Self {
-        use Prefix::*;
-        if value.starts_with(&FlipFlop.to_string()) {
+        use ModuleKind::*;
+        if value == BROADCASTER_NAME {
             Self {
-                name: value
-                    .strip_prefix(&FlipFlop.to_string())
-                    .unwrap()
-                    .to_string(),
-                prefix: Some(FlipFlop),
+                name: value.to_string(),
+                kind: Broadcast,
             }
-        } else if value.starts_with(&Conjunction.to_string()) {
+        } else if value.starts_with(FLIP_FLOP_PREFIX) {
             Self {
-                name: value
-                    .strip_prefix(&Conjunction.to_string())
-                    .unwrap()
-                    .to_string(),
-                prefix: Some(Conjunction),
+                name: value.strip_prefix(FLIP_FLOP_PREFIX).unwrap().to_string(),
+                kind: FlipFlop,
+            }
+        } else if value.starts_with(CONJUNCTION_PREFIX) {
+            Self {
+                name: value.strip_prefix(CONJUNCTION_PREFIX).unwrap().to_string(),
+                kind: Conjunction,
             }
         } else {
             Self {
                 name: value.to_string(),
-                prefix: None,
+                kind: Untyped,
             }
         }
     }
 }
 
 fn create_module(module_info: ModuleInfo) -> Rc<RefCell<dyn Module>> {
-    use Prefix::*;
-    match (&module_info.name, module_info.prefix) {
-        (name, None) => {
-            if name == BROADCASTER_NAME {
-                Rc::new(RefCell::new(Broadcast::new(name)))
-            } else {
-                Rc::new(RefCell::new(Untyped::new(name)))
-            }
-        }
-        (name, Some(FlipFlop)) => Rc::new(RefCell::new(crate::FlipFlop::new(name))),
-        (name, Some(Conjunction)) => Rc::new(RefCell::new(crate::Conjunction::new(name))),
+    match module_info.kind {
+        ModuleKind::Untyped => Rc::new(RefCell::new(Untyped::new(&module_info.name))),
+        ModuleKind::FlipFlop => Rc::new(RefCell::new(FlipFlop::new(&module_info.name))),
+        ModuleKind::Conjunction => Rc::new(RefCell::new(Conjunction::new(&module_info.name))),
+        ModuleKind::Broadcast => Rc::new(RefCell::new(Broadcast::new(&module_info.name))),
     }
 }
 
@@ -489,11 +645,11 @@ impl From<&str> for Solver {
 }
 
 pub fn part_one(input: &str) -> Option<usize> {
-    Solver::from(input).solve()
+    Solver::from(input).solve_part_one()
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    None
+    Solver::from(input).solve_part_two()
 }
 
 #[cfg(test)]
@@ -516,7 +672,7 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file_part(
-            "examples", DAY, 2,
+            "examples", DAY, 3,
         ));
         assert_eq!(result, None);
     }
