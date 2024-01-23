@@ -45,11 +45,11 @@ trait Module {
     fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>>;
     fn connect_from(&mut self, from: Address);
     fn receive(&mut self, from: Address, pulse: Pulse);
-    fn get_pulse(&self) -> Option<Pulse>;
+    fn get_output_pulse(&self) -> Option<Pulse>;
     fn is_init_state(&self) -> bool;
     fn push_history(&mut self, pulse: Pulse);
     fn get_history(&self) -> Vec<Pulse>;
-    fn clear_pulse(&mut self);
+    fn is_enable(&self) -> bool;
 
     fn connect_to(&mut self, to: Weak<RefCell<dyn Module>>) {
         self.add_destination(to.clone());
@@ -60,15 +60,14 @@ trait Module {
     }
     fn send(&mut self, pulse: Pulse) {
         self.get_destinations().into_iter().for_each(|module| {
-            let from_address = self.get_address();
             self.push_history(pulse);
+            let from_address = self.get_address();
             module
                 .upgrade()
                 .unwrap()
                 .borrow_mut()
                 .receive(from_address, pulse);
         });
-        self.clear_pulse();
     }
 }
 
@@ -91,6 +90,7 @@ struct Untyped {
 struct FlipFlop {
     base: Untyped,
     state: State,
+    enabled: bool,
 }
 
 struct Conjunction {
@@ -100,6 +100,12 @@ struct Conjunction {
 
 struct Broadcast {
     base: Untyped,
+}
+
+impl Untyped {
+    fn set_next_pulse(&mut self, pulse: Pulse) {
+        self.next_pulse = Some(pulse);
+    }
 }
 
 impl Module for Untyped {
@@ -119,7 +125,7 @@ impl Module for Untyped {
 
     fn receive(&mut self, _from: Address, _pulse: Pulse) {}
 
-    fn get_pulse(&self) -> Option<Pulse> {
+    fn get_output_pulse(&self) -> Option<Pulse> {
         self.next_pulse
     }
 
@@ -135,8 +141,8 @@ impl Module for Untyped {
         self.history.clone()
     }
 
-    fn clear_pulse(&mut self) {
-        self.next_pulse = None;
+    fn is_enable(&self) -> bool {
+        true
     }
 }
 
@@ -159,24 +165,22 @@ impl Module for FlipFlop {
         use Pulse::*;
         use State::*;
         match (pulse, &self.state) {
-            (High, _) => (),
+            (High, _) => self.enabled = false,
             (Low, On) => {
                 self.state = self.state.flip();
-                self.base.next_pulse = Some(Low);
+                self.base.set_next_pulse(Low);
+                self.enabled = true;
             }
             (Low, Off) => {
                 self.state = self.state.flip();
-                self.base.next_pulse = Some(High);
+                self.base.set_next_pulse(High);
+                self.enabled = true;
             }
         }
     }
 
-    fn get_pulse(&self) -> Option<Pulse> {
-        self.base.get_pulse()
-    }
-
-    fn clear_pulse(&mut self) {
-        self.base.clear_pulse();
+    fn get_output_pulse(&self) -> Option<Pulse> {
+        self.base.get_output_pulse()
     }
 
     fn is_init_state(&self) -> bool {
@@ -189,6 +193,10 @@ impl Module for FlipFlop {
 
     fn get_history(&self) -> Vec<Pulse> {
         self.base.get_history()
+    }
+
+    fn is_enable(&self) -> bool {
+        self.enabled
     }
 }
 
@@ -211,18 +219,16 @@ impl Module for Conjunction {
 
     fn receive(&mut self, from: Address, pulse: Pulse) {
         self.last_pulse.insert(from, pulse);
-        self.base.next_pulse = match self.last_pulse.values().all(|pulse| *pulse == Pulse::High) {
-            true => Some(Pulse::Low),
-            false => Some(Pulse::High),
+        use Pulse::*;
+        let next_pulse = match self.last_pulse.values().all(|pulse| *pulse == High) {
+            true => Low,
+            false => High,
         };
+        self.base.set_next_pulse(next_pulse);
     }
 
-    fn get_pulse(&self) -> Option<Pulse> {
-        self.base.get_pulse()
-    }
-
-    fn clear_pulse(&mut self) {
-        self.base.clear_pulse();
+    fn get_output_pulse(&self) -> Option<Pulse> {
+        self.base.get_output_pulse()
     }
 
     fn is_init_state(&self) -> bool {
@@ -235,6 +241,10 @@ impl Module for Conjunction {
 
     fn get_history(&self) -> Vec<Pulse> {
         self.base.get_history()
+    }
+
+    fn is_enable(&self) -> bool {
+        self.base.is_enable()
     }
 }
 
@@ -254,15 +264,11 @@ impl Module for Broadcast {
     fn connect_from(&mut self, _from: Address) {}
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
-        self.base.next_pulse = Some(pulse);
+        self.base.set_next_pulse(pulse);
     }
 
-    fn get_pulse(&self) -> Option<Pulse> {
-        self.base.get_pulse()
-    }
-
-    fn clear_pulse(&mut self) {
-        self.base.clear_pulse();
+    fn get_output_pulse(&self) -> Option<Pulse> {
+        self.base.get_output_pulse()
     }
 
     fn is_init_state(&self) -> bool {
@@ -275,6 +281,10 @@ impl Module for Broadcast {
 
     fn get_history(&self) -> Vec<Pulse> {
         self.base.get_history()
+    }
+
+    fn is_enable(&self) -> bool {
+        self.base.is_enable()
     }
 }
 
@@ -294,6 +304,7 @@ impl FlipFlop {
         Self {
             state: State::Off,
             base: Untyped::new(name),
+            enabled: false,
         }
     }
 }
@@ -339,32 +350,37 @@ impl Solver {
             if let Some(pulse) = {
                 let upgrade = module.upgrade().unwrap();
                 let borrowed = upgrade.borrow();
-                borrowed.get_pulse()
+                borrowed.get_output_pulse()
             } {
                 module.upgrade().unwrap().borrow_mut().send(pulse);
                 modules.append(&mut VecDeque::from_iter(
-                    module.upgrade().unwrap().borrow().get_destinations(),
+                    module
+                        .upgrade()
+                        .unwrap()
+                        .borrow()
+                        .get_destinations()
+                        .into_iter()
+                        .filter(|module| module.upgrade().unwrap().borrow().is_enable()),
                 ));
             }
         }
     }
 
     fn solve(&self) -> Option<usize> {
+        use Pulse::*;
         (0..1000).for_each(|_| self.push_button());
-        Some(
-            self.modules
-                .values()
-                .flat_map(|module| module.borrow().get_history())
-                .fold([0, 0], |mut acc, pulse| {
-                    match pulse {
-                        Pulse::Low => acc[0] += 1,
-                        Pulse::High => acc[1] += 1,
-                    }
-                    acc
-                })
-                .iter()
-                .product(),
-        )
+        let (low_count, hight_count) = self
+            .modules
+            .values()
+            .flat_map(|module| module.borrow().get_history())
+            .fold((0, 0), |mut acc, pulse| {
+                match pulse {
+                    Low => acc.0 += 1,
+                    High => acc.1 += 1,
+                }
+                acc
+            });
+        Some(low_count * hight_count)
     }
 }
 
