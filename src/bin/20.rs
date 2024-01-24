@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, VecDeque},
     fmt::Display,
     rc::{Rc, Weak},
     vec,
@@ -50,15 +50,22 @@ trait Module {
     fn get_address(&self) -> Address;
     fn add_destination(&mut self, other: Weak<RefCell<dyn Module>>);
     fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>>;
-    fn connect_from(&mut self, from: Address);
-    fn get_connected(&self) -> Vec<Address>;
-    fn receive(&mut self, from: Address, pulse: Pulse);
     fn get_output_pulse(&self) -> Option<Pulse>;
-    fn is_init_state(&self) -> bool;
     fn push_history(&mut self, pulse: Pulse);
     fn get_history(&self) -> Vec<Pulse>;
-    fn is_enable(&self) -> bool;
     fn get_kind(&self) -> ModuleKind;
+
+    fn receive(&mut self, _from: Address, _pulse: Pulse) {}
+
+    fn connect_from(&mut self, _from: Address) {}
+
+    fn is_init_state(&self) -> bool {
+        true
+    }
+
+    fn is_enable(&self) -> bool {
+        true
+    }
 
     fn connect_to(&mut self, to: Weak<RefCell<dyn Module>>) {
         self.add_destination(to.clone());
@@ -67,6 +74,7 @@ trait Module {
             .borrow_mut()
             .connect_from(self.get_address());
     }
+
     fn send(&mut self, pulse: Pulse) {
         self.get_destinations().into_iter().for_each(|module| {
             self.push_history(pulse);
@@ -89,20 +97,10 @@ impl State {
     }
 }
 
-impl Pulse {
-    fn flip(&self) -> Self {
-        match self {
-            Self::High => Self::Low,
-            Self::Low => Self::High,
-        }
-    }
-}
-
 struct Untyped {
     name: String,
     output_pulse: Option<Pulse>,
     destinations: Vec<Weak<RefCell<dyn Module>>>,
-    connected: Vec<Address>,
     history: Vec<Pulse>,
 }
 
@@ -140,22 +138,8 @@ impl Module for Untyped {
         self.destinations.clone()
     }
 
-    fn connect_from(&mut self, from: Address) {
-        self.connected.push(from)
-    }
-
-    fn get_connected(&self) -> Vec<Address> {
-        self.connected.clone()
-    }
-
-    fn receive(&mut self, _from: Address, _pulse: Pulse) {}
-
     fn get_output_pulse(&self) -> Option<Pulse> {
         self.output_pulse
-    }
-
-    fn is_init_state(&self) -> bool {
-        true
     }
 
     fn push_history(&mut self, pulse: Pulse) {
@@ -164,10 +148,6 @@ impl Module for Untyped {
 
     fn get_history(&self) -> Vec<Pulse> {
         self.history.clone()
-    }
-
-    fn is_enable(&self) -> bool {
-        true
     }
 
     fn get_kind(&self) -> ModuleKind {
@@ -186,14 +166,6 @@ impl Module for FlipFlop {
 
     fn get_destinations(&self) -> Vec<Weak<RefCell<dyn Module>>> {
         self.base.get_destinations()
-    }
-
-    fn connect_from(&mut self, from: Address) {
-        self.base.connect_from(from);
-    }
-
-    fn get_connected(&self) -> Vec<Address> {
-        self.base.get_connected()
     }
 
     fn receive(&mut self, _from: Address, pulse: Pulse) {
@@ -257,10 +229,6 @@ impl Module for Conjunction {
         self.last_pulse.insert(from, Pulse::Low);
     }
 
-    fn get_connected(&self) -> Vec<Address> {
-        self.base.get_connected()
-    }
-
     fn receive(&mut self, from: Address, pulse: Pulse) {
         self.last_pulse.insert(from, pulse);
         use Pulse::*;
@@ -287,10 +255,6 @@ impl Module for Conjunction {
         self.base.get_history()
     }
 
-    fn is_enable(&self) -> bool {
-        self.base.is_enable()
-    }
-
     fn get_kind(&self) -> ModuleKind {
         ModuleKind::Conjunction
     }
@@ -309,24 +273,12 @@ impl Module for Broadcast {
         self.base.get_destinations()
     }
 
-    fn connect_from(&mut self, from: Address) {
-        self.base.connect_from(from);
-    }
-
-    fn get_connected(&self) -> Vec<Address> {
-        self.base.get_connected()
-    }
-
     fn receive(&mut self, _from: Address, pulse: Pulse) {
         self.base.set_output_pulse(pulse);
     }
 
     fn get_output_pulse(&self) -> Option<Pulse> {
         self.base.get_output_pulse()
-    }
-
-    fn is_init_state(&self) -> bool {
-        self.base.is_init_state()
     }
 
     fn push_history(&mut self, pulse: Pulse) {
@@ -337,12 +289,8 @@ impl Module for Broadcast {
         self.base.get_history()
     }
 
-    fn is_enable(&self) -> bool {
-        self.base.is_enable()
-    }
-
     fn get_kind(&self) -> ModuleKind {
-        ModuleKind::FlipFlop
+        ModuleKind::Broadcast
     }
 }
 
@@ -352,7 +300,6 @@ impl Untyped {
             name: name.to_string(),
             output_pulse: None,
             destinations: vec![],
-            connected: vec![],
             history: vec![],
         }
     }
@@ -402,76 +349,8 @@ impl Solver {
         self.get_module(&BUTTON_NAME.to_string())
     }
 
-    fn get_output_pulse(&self, address: &Address) -> Option<Pulse> {
-        self.get_module(address).borrow().get_output_pulse()
-    }
-
-    fn get_connected(&self, address: &Address) -> Vec<Address> {
-        self.get_module(address).borrow().get_connected()
-    }
-
-    fn get_all_connected(&self, address: &Address) -> HashSet<Address> {
-        let mut all_connected = HashSet::new();
-        let mut queue = VecDeque::from_iter(self.get_connected(address));
-        while let Some(address) = queue.pop_front() {
-            if !all_connected.contains(&address) {
-                all_connected.insert(address.clone());
-                queue.append(&mut VecDeque::from_iter(
-                    self.get_connected(&address).into_iter(),
-                ));
-            }
-        }
-        all_connected
-    }
-
-    fn is_all_connected_init_state(&self, address: &Address) -> bool {
-        self.get_all_connected(address)
-            .iter()
-            .all(|address| self.get_module(address).borrow().is_init_state())
-    }
-
-    fn get_kind(&self, address: &Address) -> ModuleKind {
-        self.get_module(address).borrow().get_kind()
-    }
-
-    fn is_connected_all_conjunction(&self, address: &Address) -> bool {
-        self.get_connected(address)
-            .iter()
-            .all(|address| self.get_kind(address) == ModuleKind::Conjunction)
-    }
-
-    fn split_conditions(&self, address: &Address, pulse: Pulse) -> Option<HashMap<Address, Pulse>> {
-        if self.is_connected_all_conjunction(address) {
-            let mut map = HashMap::new();
-            self.get_connected(address).into_iter().for_each(|address| {
-                map.insert(address, pulse.flip());
-            });
-
-            return Some(map);
-        }
-
-        None
-    }
-
-    fn get_conditions(&self, address: &Address, pulse: Pulse) -> Option<HashMap<Address, Pulse>> {
-        match self.split_conditions(address, pulse) {
-            Some(mut conditions) => {
-                let mut stack: Vec<Address> = conditions.keys().cloned().collect();
-                while let Some(address) = stack.pop() {
-                    let flattened = self.split_conditions(&address, conditions[&address]);
-                    if let Some(flattened) = flattened {
-                        conditions.remove(&address);
-                        stack.append(&mut flattened.keys().cloned().collect());
-                        flattened.into_iter().for_each(|(address, pulse)| {
-                            conditions.insert(address, pulse);
-                        });
-                    }
-                }
-
-                Some(conditions)
-            }
-            None => None,
-        }
+    fn get_history(&self, address: &Address) -> Vec<Pulse> {
+        self.get_module(address).borrow().get_history()
     }
 
     fn push_button(&self) {
@@ -514,45 +393,29 @@ impl Solver {
         Some(low_count * hight_count)
     }
 
-    fn solve_part_two_by_conditions(&self, conditions: HashMap<Address, Pulse>) -> Option<usize> {
-        let mut count = 0;
-        let mut cycles: HashMap<Address, usize> = HashMap::new();
-        loop {
-            self.push_button();
-            count += 1;
-            conditions.iter().for_each(|(address, pulse)| {
-                if self.get_output_pulse(address) == Some(*pulse)
-                    && !cycles.contains_key(address)
-                    && self.is_all_connected_init_state(address)
-                {
-                    cycles.insert(address.clone(), count);
-                }
-            });
-
-            if cycles.len() == conditions.len() {
-                return cycles.values().cloned().reduce(lcm);
-            }
-        }
-    }
-
-    fn solve_part_two_brute(&self, target: &Address, pulse: Pulse) -> Option<usize> {
-        let mut count = 0;
-        loop {
-            self.push_button();
-            count += 1;
-            if self.get_output_pulse(target) == Some(pulse) {
-                return Some(count);
-            }
-        }
-    }
-
     fn solve_part_two(&self) -> Option<usize> {
-        let target: Address = "rx".to_string();
-        let pulse = Pulse::Low;
-        let conditions = self.get_conditions(&target, Pulse::Low);
-        match conditions {
-            Some(conditions) => self.solve_part_two_by_conditions(conditions),
-            None => self.solve_part_two_brute(&target, pulse),
+        let mut cycles: HashMap<Address, Option<usize>> = HashMap::from_iter([
+            ("rk".to_string(), None),
+            ("cd".to_string(), None),
+            ("zf".to_string(), None),
+            ("qx".to_string(), None),
+        ]);
+        let mut count = 0;
+        loop {
+            self.push_button();
+            count += 1;
+            cycles
+                .iter_mut()
+                .filter(|(_, cycle)| cycle.is_none())
+                .for_each(|(address, cycle)| {
+                    if self.get_history(address).contains(&Pulse::High) {
+                        *cycle = Some(count);
+                    }
+                });
+
+            if cycles.values().all(Option::is_some) {
+                return cycles.into_values().map(Option::unwrap).reduce(lcm);
+            }
         }
     }
 }
