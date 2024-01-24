@@ -537,6 +537,6 @@ mod tests {
         let result = part_two(&advent_of_code::template::read_file_part(
             "examples", DAY, 3,
         ));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(226732077152351));
     }
 }
