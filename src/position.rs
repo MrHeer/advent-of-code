@@ -25,7 +25,7 @@ where
         Self { row, col }
     }
 
-    pub fn move_to(&mut self, direction: &Direction, steps: T) -> &Self {
+    pub fn move_to(&mut self, direction: &Direction, steps: T) -> &mut Self {
         use Direction::*;
         match direction {
             Up => self.row -= steps,
@@ -34,5 +34,31 @@ where
             Right => self.col += steps,
         }
         self
+    }
+}
+
+impl Position<isize> {
+    pub fn adjacent_positions(&self) -> Vec<Self> {
+        [
+            *self.clone().move_to(&Direction::Up, 1),
+            *self.clone().move_to(&Direction::Down, 1),
+            *self.clone().move_to(&Direction::Left, 1),
+            *self.clone().move_to(&Direction::Right, 1),
+        ]
+        .into_iter()
+        .collect()
+    }
+}
+
+impl Position<usize> {
+    pub fn adjacent_positions(&self) -> Vec<Self> {
+        [
+            *self.clone().move_to(&Direction::Up, 1),
+            *self.clone().move_to(&Direction::Down, 1),
+            *self.clone().move_to(&Direction::Left, 1),
+            *self.clone().move_to(&Direction::Right, 1),
+        ]
+        .into_iter()
+        .collect()
     }
 }

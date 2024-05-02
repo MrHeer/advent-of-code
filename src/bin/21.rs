@@ -1,12 +1,10 @@
 use std::collections::{HashMap, VecDeque};
 
-use advent_of_code::{Direction, Matrix, Position as P};
+use advent_of_code::{Matrix, Position as P};
 
 advent_of_code::solution!(21);
 
-type Position = P<usize>;
-
-type CrazyPosition = P<isize>;
+type Position = P<isize>;
 
 fn cycle_to_range(num: isize, min: isize, max: isize) -> isize {
     let size = max - min + 1;
@@ -17,17 +15,6 @@ fn cycle_to_range(num: isize, min: isize, max: isize) -> isize {
     } else {
         num
     }
-}
-
-pub fn adjacent_crazy_positions(position: &CrazyPosition) -> Vec<CrazyPosition> {
-    [
-        *position.clone().move_to(&Direction::Up, 1),
-        *position.clone().move_to(&Direction::Down, 1),
-        *position.clone().move_to(&Direction::Left, 1),
-        *position.clone().move_to(&Direction::Right, 1),
-    ]
-    .into_iter()
-    .collect()
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -62,7 +49,7 @@ impl From<&str> for Garden {
 }
 
 impl Garden {
-    fn find_start(&self) -> Option<CrazyPosition> {
+    fn find_start(&self) -> Option<Position> {
         for row in 1..=self.grid.rows {
             for col in 1..=self.grid.cols {
                 let pos = (row, col).into();
@@ -74,19 +61,19 @@ impl Garden {
         None
     }
 
-    fn get_position(&self, crazy_pos: &CrazyPosition) -> Position {
-        Position {
-            row: cycle_to_range(crazy_pos.row, 1, self.grid.rows as isize) as usize,
-            col: cycle_to_range(crazy_pos.col, 1, self.grid.cols as isize) as usize,
+    fn get_index(&self, pos: &Position) -> P<usize> {
+        P {
+            row: cycle_to_range(pos.row, 1, self.grid.rows as isize) as usize,
+            col: cycle_to_range(pos.col, 1, self.grid.cols as isize) as usize,
         }
     }
 
-    fn get_tile(&self, crazy_pos: &CrazyPosition) -> Tile {
-        self.grid[self.get_position(crazy_pos)]
+    fn get_tile(&self, pos: &Position) -> Tile {
+        self.grid[self.get_index(pos)]
     }
 
-    fn get_distance_map(&self, steps: usize) -> HashMap<CrazyPosition, usize> {
-        let mut frontier = VecDeque::<(CrazyPosition, usize)>::new();
+    fn get_distance_map(&self, steps: usize) -> HashMap<Position, usize> {
+        let mut frontier = VecDeque::<(Position, usize)>::new();
         let mut distance_map = HashMap::new();
         frontier.push_back((self.find_start().unwrap(), 0));
 
@@ -97,7 +84,7 @@ impl Garden {
 
             distance_map.insert(pos, distance);
 
-            adjacent_crazy_positions(&pos)
+            pos.adjacent_positions()
                 .into_iter()
                 .filter(|next_pos| {
                     !distance_map.contains_key(next_pos) && self.get_tile(next_pos) != Tile::Rock
@@ -112,7 +99,7 @@ impl Garden {
         distance_map
     }
 
-    fn marked_count(steps: usize, distance_map: &HashMap<CrazyPosition, usize>) -> usize {
+    fn marked_count(steps: usize, distance_map: &HashMap<Position, usize>) -> usize {
         distance_map
             .values()
             .filter(|&&v| v <= steps && v % 2 == steps % 2)
