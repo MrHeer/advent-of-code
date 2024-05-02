@@ -3,7 +3,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use crate::Position;
+use crate::{Direction, Position};
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct Matrix<T> {
@@ -100,6 +100,24 @@ impl<T> Matrix<T> {
             .map(|row| row.iter().map(&mut f).collect())
             .collect::<Vec<Vec<U>>>()
             .into()
+    }
+
+    pub fn adjacent_positions(&self, position: &Idx) -> Vec<Idx> {
+        [
+            *position.clone().move_to(&Direction::Up, 1),
+            *position.clone().move_to(&Direction::Down, 1),
+            *position.clone().move_to(&Direction::Left, 1),
+            *position.clone().move_to(&Direction::Right, 1),
+        ]
+        .into_iter()
+        .collect()
+    }
+
+    pub fn adjacent_valid_positions(&self, position: &Idx) -> Vec<Idx> {
+        self.adjacent_positions(position)
+            .into_iter()
+            .filter(|pos| self.is_valid_position(pos))
+            .collect()
     }
 }
 
