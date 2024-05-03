@@ -3,12 +3,18 @@ use std::ops::{AddAssign, SubAssign};
 use crate::{Direction, Position};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Movable<T: Clone + AddAssign + SubAssign> {
+pub struct Movable<T>
+where
+    T: AddAssign + SubAssign,
+{
     pub position: Position<T>,
     pub direction: Direction,
 }
 
-impl<T: Clone + AddAssign + SubAssign> Movable<T> {
+impl<T> Movable<T>
+where
+    T: AddAssign + SubAssign,
+{
     pub fn new(position: Position<T>, direction: Direction) -> Self {
         Self {
             position,
