@@ -121,8 +121,8 @@ impl SandSlabs {
         let mut support = HashMap::new();
         let mut supported = HashMap::new();
         bricks.sort();
-        bricks.iter().for_each(|brick| {
-            // fall to settle
+
+        fn fall_to_settle(brick: &Brick, settled: &BinaryHeap<HeapState>) -> Brick {
             let mut new_settled_brick = None;
             for HeapState {
                 brick: settled_brick,
@@ -134,27 +134,32 @@ impl SandSlabs {
                     break;
                 }
             }
-            let new_settled_brick = new_settled_brick.unwrap_or(brick.fall(brick.lowest() - 1));
+            new_settled_brick.unwrap_or(brick.fall(brick.lowest() - 1))
+        }
 
-            // update support and supported
+        let mut update_dependencies = |brick: &Brick, settled: &BinaryHeap<HeapState>| {
             settled.iter().for_each(
                 |HeapState {
                      brick: settled_brick,
                  }| {
-                    if settled_brick.is_support(&new_settled_brick) {
+                    if settled_brick.is_support(brick) {
                         support
                             .entry(settled_brick.clone())
-                            .and_modify(|v: &mut Vec<Brick>| v.push(new_settled_brick.clone()))
-                            .or_insert(vec![new_settled_brick.clone()]);
+                            .and_modify(|v: &mut Vec<Brick>| v.push(brick.clone()))
+                            .or_insert(vec![brick.clone()]);
                         supported
-                            .entry(new_settled_brick.clone())
+                            .entry(brick.clone())
                             .and_modify(|v: &mut Vec<Brick>| v.push(settled_brick.clone()))
                             .or_insert(vec![settled_brick.clone()]);
                     }
                 },
             );
+        };
 
-            settled.push(HeapState::from(new_settled_brick));
+        bricks.iter().for_each(|brick| {
+            let settled_brick = fall_to_settle(brick, &settled);
+            update_dependencies(&settled_brick, &settled);
+            settled.push(HeapState::from(settled_brick));
         });
 
         FallResult {
@@ -354,7 +359,7 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(7));
     }
 
     #[test]
