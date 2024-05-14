@@ -2,7 +2,7 @@
 
 use std::{
     cmp::Ordering,
-    collections::{BinaryHeap, HashMap},
+    collections::{BinaryHeap, HashMap, HashSet},
     fmt::Display,
     ops::RangeInclusive,
 };
@@ -222,8 +222,8 @@ pub fn part_one(input: &str) -> Option<usize> {
         supported,
     } = SandSlabs::from(input).fall();
     let is_safe = |brick: &Brick| -> bool {
-        support.get(brick).map_or(true, |bricks| {
-            bricks
+        support.get(brick).map_or(true, |supports| {
+            supports
                 .iter()
                 .all(|brick| supported.get(brick).unwrap().len() >= 2)
         })
@@ -233,7 +233,37 @@ pub fn part_one(input: &str) -> Option<usize> {
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    None
+    let FallResult {
+        bricks,
+        support,
+        supported,
+    } = SandSlabs::from(input).fall();
+
+    let should_falling = |brick: &Brick, fallings: &HashSet<&Brick>| {
+        supported
+            .get(brick)
+            .unwrap()
+            .iter()
+            .all(|brick| fallings.contains(brick))
+    };
+
+    let falling_count = |disintegrated: &Brick| -> usize {
+        let mut fallings = HashSet::new();
+        let mut disintegrated_queue = vec![disintegrated];
+        while let Some(disintegrated) = disintegrated_queue.pop() {
+            fallings.insert(disintegrated);
+            if let Some(supports) = support.get(disintegrated) {
+                supports
+                    .iter()
+                    .filter(|brick| should_falling(brick, &fallings))
+                    .for_each(|disintegrated| disintegrated_queue.push(disintegrated));
+            }
+        }
+
+        fallings.len() - 1
+    };
+
+    Some(bricks.iter().map(falling_count).sum())
 }
 
 #[cfg(test)]
