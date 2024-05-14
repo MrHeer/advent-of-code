@@ -128,7 +128,7 @@ impl SandSlabs {
                 brick: settled_brick,
             } in settled.clone().into_iter_sorted()
             {
-                if brick.is_intersect(&settled_brick) {
+                if brick.is_intersect_in_xy(&settled_brick) {
                     let diff = brick.lowest() - settled_brick.highest() - 1;
                     new_settled_brick = Some(brick.fall(diff));
                     break;
@@ -187,57 +187,18 @@ impl Brick {
     }
 
     fn is_support(&self, other: &Self) -> bool {
-        self.highest() + 1 == other.lowest() && self.is_intersect(other)
+        self.highest() + 1 == other.lowest() && self.is_intersect_in_xy(other)
     }
 
-    fn is_intersect(&self, other: &Self) -> bool {
-        let segment1 = create_segment(
-            (self.start.x, self.start.y).into(),
-            (self.end.x, self.end.y).into(),
-        );
-        let segment2 = create_segment(
-            (other.start.x, other.start.y).into(),
-            (other.end.x, other.end.y).into(),
-        );
-
-        match (segment1, segment2) {
-            (Ok(segment), Ok(other_segment)) => segment.is_intersect(&other_segment),
-            (Ok(segment), Err(point)) => segment.is_contains(&point),
-            (Err(point), Ok(segment)) => segment.is_contains(&point),
-            (Err(point), Err(other_point)) => point == other_point,
-        }
+    fn is_intersect_in_xy(&self, other: &Self) -> bool {
+        is_overlap(
+            create_range(self.start.x, self.end.x),
+            create_range(other.start.x, other.end.x),
+        ) && is_overlap(
+            create_range(self.start.y, self.end.y),
+            create_range(other.start.y, other.end.y),
+        )
     }
-}
-
-#[derive(PartialEq, Eq)]
-struct Point {
-    x: usize,
-    y: usize,
-}
-
-struct Segment {
-    start: Point,
-    end: Point,
-}
-
-impl From<(usize, usize)> for Point {
-    fn from(value: (usize, usize)) -> Self {
-        let (x, y) = value;
-        Self { x, y }
-    }
-}
-
-fn create_segment(start: Point, end: Point) -> Result<Segment, Point> {
-    if start == end {
-        Err(start)
-    } else {
-        Ok(Segment { start, end })
-    }
-}
-
-enum Orientation {
-    Horizontal,
-    Vertical,
 }
 
 fn create_range(start: usize, end: usize) -> RangeInclusive<usize> {
@@ -246,83 +207,12 @@ fn create_range(start: usize, end: usize) -> RangeInclusive<usize> {
     min..=max
 }
 
-fn is_in_range(value: usize, start: usize, end: usize) -> bool {
-    create_range(start, end).contains(&value)
-}
-
 fn is_overlap(range: RangeInclusive<usize>, other: RangeInclusive<usize>) -> bool {
     let min1 = range.start();
     let max1 = range.end();
     let min2 = other.start();
     let max2 = other.end();
     min1.max(min2) <= max1.min(max2)
-}
-
-use Orientation::*;
-
-impl Segment {
-    fn is_intersect(&self, other: &Self) -> bool {
-        match (self.orientation().unwrap(), other.orientation().unwrap()) {
-            (Horizontal, Horizontal) => {
-                if self.start.y != other.start.y {
-                    false
-                } else {
-                    is_overlap(
-                        create_range(self.start.x, self.end.x),
-                        create_range(other.start.x, other.end.x),
-                    )
-                }
-            }
-            (Vertical, Vertical) => {
-                if self.start.x != other.start.x {
-                    false
-                } else {
-                    is_overlap(
-                        create_range(self.start.y, self.end.y),
-                        create_range(other.start.y, other.end.y),
-                    )
-                }
-            }
-            (Vertical, Horizontal) => {
-                is_in_range(self.start.x, other.start.x, other.end.x)
-                    && is_in_range(other.start.y, self.start.y, self.end.y)
-            }
-            (Horizontal, Vertical) => {
-                is_in_range(other.start.x, self.start.x, self.end.x)
-                    && is_in_range(self.start.y, other.start.y, other.end.y)
-            }
-        }
-    }
-
-    fn is_contains(&self, point: &Point) -> bool {
-        let Self { start, end } = self;
-        match self.orientation().unwrap() {
-            Horizontal => {
-                if point.y != start.y {
-                    false
-                } else {
-                    is_in_range(point.x, start.x, end.x)
-                }
-            }
-            Vertical => {
-                if point.x != start.x {
-                    false
-                } else {
-                    is_in_range(point.y, start.y, end.y)
-                }
-            }
-        }
-    }
-
-    fn orientation(&self) -> Option<Orientation> {
-        let Self { start, end } = self;
-        if start.x == end.x {
-            return Some(Vertical);
-        } else if start.y == end.y {
-            return Some(Horizontal);
-        }
-        None
-    }
 }
 
 pub fn part_one(input: &str) -> Option<usize> {
@@ -363,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect() {
+    fn test_intersect_in_xy() {
         let a = Brick::from("1,0,1~1,2,1");
         let b = Brick::from("0,0,2~2,0,2");
         let c = Brick::from("0,2,3~2,2,3");
@@ -372,14 +262,14 @@ mod tests {
         let f = Brick::from("0,1,6~2,1,6");
         let g = Brick::from("1,1,8~1,1,9");
 
-        assert!(a.is_intersect(&b));
-        assert!(a.is_intersect(&c));
-        assert!(b.is_intersect(&d));
-        assert!(b.is_intersect(&e));
-        assert!(c.is_intersect(&d));
-        assert!(c.is_intersect(&e));
-        assert!(d.is_intersect(&f));
-        assert!(e.is_intersect(&f));
-        assert!(f.is_intersect(&g));
+        assert!(a.is_intersect_in_xy(&b));
+        assert!(a.is_intersect_in_xy(&c));
+        assert!(b.is_intersect_in_xy(&d));
+        assert!(b.is_intersect_in_xy(&e));
+        assert!(c.is_intersect_in_xy(&d));
+        assert!(c.is_intersect_in_xy(&e));
+        assert!(d.is_intersect_in_xy(&f));
+        assert!(e.is_intersect_in_xy(&f));
+        assert!(f.is_intersect_in_xy(&g));
     }
 }
