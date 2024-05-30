@@ -109,6 +109,12 @@ impl<T> Matrix<T> {
             .filter(|pos| self.is_valid_position(pos))
             .collect()
     }
+
+    pub fn indexes(&self) -> Vec<Idx> {
+        (1..=self.rows)
+            .flat_map(|row| (1..=self.cols).map(move |col| (row, col).into()))
+            .collect()
+    }
 }
 
 impl<T> Matrix<T>
