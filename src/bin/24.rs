@@ -1,4 +1,8 @@
-use matrix::{equation, line::Line, vector};
+use matrix::{
+    equation,
+    line::{Intersection, Line},
+    linear_system, vector, Solution, Vector,
+};
 
 advent_of_code::solution!(24);
 
@@ -13,178 +17,78 @@ impl Time {
     }
 }
 
-struct Position {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-impl From<(f64, f64, f64)> for Position {
-    fn from(value: (f64, f64, f64)) -> Self {
-        let (x, y, z) = value;
-        Self { x, y, z }
-    }
-}
-
-impl From<&str> for Position {
-    fn from(value: &str) -> Self {
-        let mut iter = value.split(',').map(|x| x.trim().parse().unwrap());
-        (
-            iter.next().unwrap(),
-            iter.next().unwrap(),
-            iter.next().unwrap(),
-        )
-            .into()
-    }
-}
-
-struct Velocity {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-impl From<(f64, f64, f64)> for Velocity {
-    fn from(value: (f64, f64, f64)) -> Self {
-        let (x, y, z) = value;
-        Self { x, y, z }
-    }
-}
-
-impl From<&str> for Velocity {
-    fn from(value: &str) -> Self {
-        let mut iter = value.split(',').map(|x| x.trim().parse().unwrap());
-        (
-            iter.next().unwrap(),
-            iter.next().unwrap(),
-            iter.next().unwrap(),
-        )
-            .into()
-    }
-}
-
 struct Hailstone {
-    position: Position,
-    velocity: Velocity,
+    position: Vector<3>,
+    velocity: Vector<3>,
 }
 
 impl From<&str> for Hailstone {
     fn from(value: &str) -> Self {
         let mut iter = value.split('@');
-        let position = iter.next().unwrap().into();
-        let velocity = iter.next().unwrap().into();
+
+        fn into_vector(value: &str) -> Vector<3> {
+            let mut iter = value.split(',').map(|x| x.trim().parse::<f64>().unwrap());
+            vector([
+                iter.next().unwrap(),
+                iter.next().unwrap(),
+                iter.next().unwrap(),
+            ])
+        }
+
+        let position = into_vector(iter.next().unwrap());
+        let velocity = into_vector(iter.next().unwrap());
         Self { position, velocity }
     }
 }
 
-struct Position2D {
-    x: f64,
-    y: f64,
-}
-
-impl From<Position> for Position2D {
-    fn from(value: Position) -> Self {
-        Self {
-            x: value.x,
-            y: value.y,
-        }
-    }
-}
-
-struct Velocity2D {
-    x: f64,
-    y: f64,
-}
-
-impl From<Velocity> for Velocity2D {
-    fn from(value: Velocity) -> Self {
-        Self {
-            x: value.x,
-            y: value.y,
-        }
-    }
-}
-
-struct Hailstone2D {
-    position: Position2D,
-    velocity: Velocity2D,
-}
-
-impl From<Hailstone> for Hailstone2D {
-    fn from(value: Hailstone) -> Self {
-        Self {
-            position: value.position.into(),
-            velocity: value.velocity.into(),
-        }
-    }
-}
-
-enum Intersection<T> {
-    None,
-    Some(T),
-    Infinity,
-}
-
-impl Hailstone2D {
-    fn get_line(&self) -> Line {
-        let Position2D { x: px, y: py } = self.position;
-        let Velocity2D { x: vx, y: vy } = self.velocity;
+impl Hailstone {
+    fn get_line_in_xy(&self) -> Line {
+        let px = self.position[0];
+        let py = self.position[1];
+        let vx = self.velocity[0];
+        let vy = self.velocity[1];
         let normal_vector = vector([vy, -vx]);
         let constant_term = vy * px - vx * py;
         equation(normal_vector, constant_term)
     }
 
-    fn intersect(&self, other: &Self) -> Intersection<Position2D> {
-        let line = self.get_line();
-        let other_line = other.get_line();
-        match line.intersect(&other_line) {
-            matrix::line::Intersection::Some(vector) => Intersection::Some(Position2D {
-                x: vector[0],
-                y: vector[1],
-            }),
-            matrix::line::Intersection::None => Intersection::None,
-            matrix::line::Intersection::Infinity(_) => Intersection::Infinity,
-        }
+    fn intersect(&self, other: &Self) -> Intersection {
+        let line = self.get_line_in_xy();
+        let other_line = other.get_line_in_xy();
+        line.intersect(&other_line)
     }
 
-    fn position(&self, time: &Time) -> Position2D {
-        Position2D {
-            x: self.position.x + time.nanosecond * self.velocity.x,
-            y: self.position.y + time.nanosecond * self.velocity.y,
-        }
+    fn position_at(&self, time: &Time) -> Vector<3> {
+        self.position + self.velocity * time.nanosecond
     }
 
-    fn collide(&self, other: &Self) -> Option<(Time, Time, Position2D)> {
+    fn collide(&self, other: &Self) -> Option<(Time, Time, Vector<3>)> {
         let time = match self.intersect(other) {
             Intersection::Some(position) => Some((
-                Time::new((position.x - self.position.x) / self.velocity.x),
-                Time::new((position.x - other.position.x) / other.velocity.x),
+                Time::new((position[0] - self.position[0]) / self.velocity[0]),
+                Time::new((position[0] - other.position[0]) / other.velocity[0]),
             )),
             _ => None,
         };
         time.map(|(time, other_time)| {
-            let position = self.position(&time);
+            let position = self.position_at(&time);
             (time, other_time, position)
         })
     }
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
-    let hailstones: Vec<Hailstone2D> = input
-        .lines()
-        .map(Hailstone::from)
-        .map(Hailstone2D::from)
-        .collect();
+pub fn part_one(input: &str) -> Option<usize> {
+    let hailstones: Vec<Hailstone> = input.lines().map(Hailstone::from).collect();
     let mut intersections = 0;
     (0..hailstones.len() - 1).for_each(|i| {
         (i + 1..hailstones.len()).for_each(|j| {
             if let Some((time, other_time, position)) = hailstones[i].collide(&hailstones[j]) {
                 if time.nanosecond > 0.
                     && other_time.nanosecond > 0.
-                    && position.x >= 200000000000000.
-                    && position.y >= 200000000000000.
-                    && position.x <= 400000000000000.
-                    && position.y <= 400000000000000.
+                    && position[0] >= 200000000000000.
+                    && position[1] >= 200000000000000.
+                    && position[0] <= 400000000000000.
+                    && position[1] <= 400000000000000.
                 {
                     intersections += 1;
                 }
@@ -194,8 +98,32 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(intersections)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<usize> {
+    // (p - p[i]) x (v - v[i]) = 0
+    // https://typst.app/project/rDEObAUN5ac0NsNYoFnSI7
+    let hailstones: Vec<Hailstone> = input.lines().map(Hailstone::from).collect();
+    let v01 = hailstones[0].velocity - hailstones[1].velocity;
+    let p10 = hailstones[1].position - hailstones[0].position;
+    let c01 = hailstones[1].position.cross(&hailstones[1].velocity)
+        - hailstones[0].position.cross(&hailstones[0].velocity);
+    let v12 = hailstones[1].velocity - hailstones[2].velocity;
+    let p21 = hailstones[2].position - hailstones[1].position;
+    let c12 = hailstones[2].position.cross(&hailstones[2].velocity)
+        - hailstones[1].position.cross(&hailstones[1].velocity);
+
+    let system = linear_system([
+        equation(vector([0., -v01[2], v01[1], 0., -p10[2], p10[1]]), c01[0]),
+        equation(vector([v01[2], 0., -v01[0], p10[2], 0., -p10[0]]), c01[1]),
+        equation(vector([-v01[1], v01[0], 0., -p10[1], p10[0], 0.]), c01[2]),
+        equation(vector([0., -v12[2], v12[1], 0., -p21[2], p21[1]]), c12[0]),
+        equation(vector([v12[2], 0., -v12[0], p21[2], 0., -p21[0]]), c12[1]),
+        equation(vector([-v12[1], v12[0], 0., -p21[1], p21[0], 0.]), c12[2]),
+    ]);
+
+    match system.compute_solution() {
+        Solution::Some(s) => Some(s[0] as usize + s[1] as usize + s[2] as usize),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +139,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(47));
     }
 }
