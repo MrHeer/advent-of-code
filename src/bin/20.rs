@@ -53,15 +53,10 @@ trait Module {
     fn get_output_pulse(&self) -> Option<Pulse>;
     fn push_history(&mut self, pulse: Pulse);
     fn get_history(&self) -> Vec<Pulse>;
-    fn get_kind(&self) -> ModuleKind;
 
     fn receive(&mut self, _from: Address, _pulse: Pulse) {}
 
     fn connect_from(&mut self, _from: Address) {}
-
-    fn is_init_state(&self) -> bool {
-        true
-    }
 
     fn is_enable(&self) -> bool {
         true
@@ -149,10 +144,6 @@ impl Module for Untyped {
     fn get_history(&self) -> Vec<Pulse> {
         self.history.clone()
     }
-
-    fn get_kind(&self) -> ModuleKind {
-        ModuleKind::Untyped
-    }
 }
 
 impl Module for FlipFlop {
@@ -190,10 +181,6 @@ impl Module for FlipFlop {
         self.base.get_output_pulse()
     }
 
-    fn is_init_state(&self) -> bool {
-        self.state == State::Off
-    }
-
     fn push_history(&mut self, pulse: Pulse) {
         self.base.push_history(pulse);
     }
@@ -204,10 +191,6 @@ impl Module for FlipFlop {
 
     fn is_enable(&self) -> bool {
         self.enabled
-    }
-
-    fn get_kind(&self) -> ModuleKind {
-        ModuleKind::FlipFlop
     }
 }
 
@@ -243,20 +226,12 @@ impl Module for Conjunction {
         self.base.get_output_pulse()
     }
 
-    fn is_init_state(&self) -> bool {
-        self.last_pulse.values().all(|pulse| *pulse == Pulse::Low)
-    }
-
     fn push_history(&mut self, pulse: Pulse) {
         self.base.push_history(pulse);
     }
 
     fn get_history(&self) -> Vec<Pulse> {
         self.base.get_history()
-    }
-
-    fn get_kind(&self) -> ModuleKind {
-        ModuleKind::Conjunction
     }
 }
 
@@ -287,10 +262,6 @@ impl Module for Broadcast {
 
     fn get_history(&self) -> Vec<Pulse> {
         self.base.get_history()
-    }
-
-    fn get_kind(&self) -> ModuleKind {
-        ModuleKind::Broadcast
     }
 }
 

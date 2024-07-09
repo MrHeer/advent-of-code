@@ -121,15 +121,14 @@ impl Engine {
     }
 
     fn get_star_map(&self) -> HashMap<Position, Vec<u32>> {
-        let mut star_map = HashMap::new();
+        let mut star_map: HashMap<P<usize>, Vec<u32>> = HashMap::new();
 
         self.numbers.iter().for_each(|number| {
             self.get_number_adjacent_position(number)
                 .into_iter()
                 .filter(|adjacent_pos| self.is_star(adjacent_pos))
                 .for_each(|star_pos| {
-                    let star_numbers = star_map.entry(star_pos).or_insert(vec![]);
-                    star_numbers.push(number.value);
+                    star_map.entry(star_pos).or_default().push(number.value);
                 });
         });
 

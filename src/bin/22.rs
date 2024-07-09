@@ -118,8 +118,8 @@ impl SandSlabs {
     fn fall(&self) -> FallResult {
         let mut bricks = self.bricks.clone();
         let mut settled = BinaryHeap::new();
-        let mut support = HashMap::new();
-        let mut supported = HashMap::new();
+        let mut support: HashMap<Brick, Vec<Brick>> = HashMap::new();
+        let mut supported: HashMap<Brick, Vec<Brick>> = HashMap::new();
         bricks.sort();
 
         fn fall_to_settle(brick: &Brick, settled: &BinaryHeap<HeapState>) -> Brick {
@@ -145,12 +145,12 @@ impl SandSlabs {
                     if settled_brick.is_support(brick) {
                         support
                             .entry(settled_brick.clone())
-                            .and_modify(|v: &mut Vec<Brick>| v.push(brick.clone()))
-                            .or_insert(vec![brick.clone()]);
+                            .or_default()
+                            .push(brick.clone());
                         supported
                             .entry(brick.clone())
-                            .and_modify(|v: &mut Vec<Brick>| v.push(settled_brick.clone()))
-                            .or_insert(vec![settled_brick.clone()]);
+                            .or_default()
+                            .push(settled_brick.clone());
                     }
                 },
             );
