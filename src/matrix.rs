@@ -128,8 +128,8 @@ where
 
         Self {
             cells,
-            rows: self.rows,
-            cols: self.cols,
+            rows: self.cols,
+            cols: self.rows,
         }
     }
 }
